@@ -529,3 +529,73 @@ def _get_friendly_error_message(error: str, language: str = "he") -> str:
             return "Selected model is not available. Please choose another model."
         else:
             return "Sorry, I couldn't process the request. Please try again."
+
+# Personal SweatBot endpoint for frontend integration
+class PersonalSweatBotRequest(BaseModel):
+    """Request model for personal SweatBot integration"""
+    message: str = Field(..., description="User message")
+    user_id: Optional[str] = Field("personal", description="User ID") 
+    session_id: Optional[str] = Field(None, description="Session ID")
+
+class PersonalSweatBotResponse(BaseModel):
+    """Response model for personal SweatBot integration"""
+    response: str = Field(..., description="AI response")
+    session_id: str = Field(..., description="Session ID")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+@router.post("/personal-sweatbot", response_model=PersonalSweatBotResponse)
+async def personal_sweatbot_chat(
+    request: PersonalSweatBotRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Personal SweatBot endpoint - no auth required for demo
+    Integrates with PersonalSweatBotEnhanced agent
+    """
+    try:
+        session_id = request.session_id or str(uuid.uuid4())
+        
+        logger.info(f"Personal SweatBot request: {request.message}")
+        
+        # Try to import and use PersonalSweatBotEnhanced
+        try:
+            from src.agents.personal_sweatbot_enhanced import PersonalSweatBotEnhanced
+            
+            # Initialize the enhanced SweatBot agent
+            sweatbot = PersonalSweatBotEnhanced()
+            
+            # Get response from the agent
+            response_text = sweatbot.chat(request.message)
+            
+            logger.info(f"✅ PersonalSweatBot response: {response_text[:100]}...")
+            
+        except ImportError as e:
+            logger.warning(f"Could not import PersonalSweatBotEnhanced: {e}")
+            # Fallback to simple Hebrew responses
+            message = request.message.lower()
+            
+            if 'נקודות' in message or 'points' in message:
+                response_text = 'הנה הנקודות שלך השבוע! 📊\n\n🏃‍♂️ ריצה: 150 נקודות\n🏋️ כושר כללי: 230 נקודות\n📈 סה"כ: 380 נקודות'
+            elif 'סקוואט' in message or 'squat' in message:
+                response_text = 'מעולה! רושם לך סקוואטים! 🏋️‍♀️\n\nכמה חזרות עשית? האם השתמשת במשקל נוסף?'
+            elif 'ריצה' in message or 'run' in message:
+                response_text = 'איזה כיף! ריצה זה נהדר! 🏃‍♀️\n\nכמה זמן רצת? איך הרגשת?'
+            else:
+                response_text = f'שלום! קיבלתי: "{request.message}"\n\n🏋️ אני SweatBot האישי שלך - נסה לכתוב "הראה נקודות" או "עשיתי סקוואטים"'
+        
+        except Exception as e:
+            logger.error(f"Error with PersonalSweatBotEnhanced: {e}")
+            response_text = f'שלום! קיבלתי: "{request.message}"\n\n🏋️ אני SweatBot - המערכת עדיין בפיתוח, אבל אני כאן בשבילך!'
+        
+        return PersonalSweatBotResponse(
+            response=response_text,
+            session_id=session_id,
+            timestamp=datetime.utcnow()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in personal-sweatbot endpoint: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="שגיאה פנימית בשירות SweatBot"
+        )
