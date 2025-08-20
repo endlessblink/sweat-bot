@@ -8,7 +8,7 @@ from phi.model.openai import OpenAIChat
 from phi.model.google import Gemini
 from phi.model.groq import Groq
 from phi.memory.agent import AgentMemory
-from .mongodb_memory import MongoDBMemory
+from mongodb_memory import MongoDBMemory
 from typing import Optional, Dict, Any
 import os
 import sys
@@ -379,7 +379,7 @@ class PersonalSweatBotEnhanced:
                 # Test authenticated endpoint
                 if self.token:
                     auth_response = requests.get(
-                        f"{self.backend_url}/api/v1/exercises/statistics",
+                        f"{self.backend_url}/exercises/statistics",
                         headers={"Authorization": f"Bearer {self.token}"},
                         timeout=5
                     )
