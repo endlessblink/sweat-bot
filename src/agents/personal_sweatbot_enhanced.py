@@ -8,7 +8,7 @@ from phi.model.openai import OpenAIChat
 from phi.model.google import Gemini
 from phi.model.groq import Groq
 from phi.memory.agent import AgentMemory
-from mongodb_memory import MongoDBMemory
+from .mongodb_memory import MongoDBMemory
 from typing import Optional, Dict, Any
 import os
 import sys

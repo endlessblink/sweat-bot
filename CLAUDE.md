@@ -114,11 +114,36 @@ python view_database.py
 ## Critical Implementation Details
 
 ### Hebrew Voice Recognition Flow
-1. **Audio Capture**: Browser MediaRecorder API or sounddevice
-2. **Transmission**: WebSocket streaming to `/ws` endpoint
+1. **Audio Capture**: Browser MediaRecorder API or sounddevice (desktop)
+2. **Transmission**: WebSocket streaming to `/ws` endpoint or direct processing
 3. **Processing**: Whisper model (`ivrit-ai/whisper-large-v3`) transcription
 4. **Parsing**: `hebrew_parser_service.py` extracts exercise commands
 5. **Storage**: PostgreSQL with Hebrew/English name mapping
+
+### Voice Recording Support
+**Desktop Voice Interface**: `voice_sweatbot.py`
+- **Real-time Recording**: Uses sounddevice for live microphone input
+- **Silence Detection**: Automatically stops recording after 2 seconds of silence
+- **Hebrew Transcription**: Integrates with Whisper for Hebrew command recognition
+- **Conversation Persistence**: All voice interactions saved to MongoDB
+
+**System Requirements for Voice Recording**:
+```bash
+# Ubuntu/WSL2 - Install PortAudio system library
+sudo apt-get install portaudio19-dev python3-pyaudio
+
+# Install Python dependencies
+pip install sounddevice soundfile pydub
+
+# Test voice recording
+python voice_sweatbot.py
+```
+
+**Voice Commands Examples**:
+- `python voice_sweatbot.py` - Interactive voice mode
+- Press ENTER to start voice recording
+- Speak Hebrew: "עשיתי 20 סקוואטים"
+- System auto-stops after silence, processes with PersonalSweatBot
 
 **Hebrew Command Examples**:
 - `"עשיתי 20 סקוואטים"` → Logs 20 squats
@@ -145,16 +170,35 @@ Located in `src/agents/mongodb_memory.py`:
 3. **Context Retrieval** → Recent conversations loaded on startup
 4. **Dual Persistence** → Exercises to PostgreSQL, conversations to MongoDB
 
-### Mastra AI Agent System
-Located in `src/mastra/`:
-- **Fitness Coach Agent**: General fitness guidance and exercise recommendations
-- **Adaptive Agent**: Personalized coaching based on user behavior patterns
-- **Engaging Coach Agent**: Motivational responses and gamification feedback
+### Intelligent Tool-Based Agent System
+Located in `src/agents/`:
+- **PersonalSweatBotWithTools**: Advanced AI agent with natural language understanding
+- **Specialized Tools Architecture**: Each action handled by dedicated tools
+- **No Command Memorization**: Understands intent from natural language
 
-Agents integrate with:
-- `behavior-analyzer.ts`: User pattern recognition
-- `user-preferences.ts`: Personalization system
-- `exercise-logger.ts` & `stats-tracker.ts`: Data integration
+**Tool Architecture**:
+```
+src/agents/tools/
+├── exercise_logger.py      # Logs exercises from natural language
+├── statistics_retriever.py # Gets points, stats, and progress
+├── data_manager.py         # Resets/clears data (with confirmation)
+├── goal_setter.py          # Manages fitness goals
+├── progress_analyzer.py    # Analyzes trends and insights
+└── workout_suggester.py    # Suggests personalized workouts
+```
+
+**Natural Language Examples**:
+- `"עשיתי 20 סקוואטים"` → Uses ExerciseLoggerTool automatically
+- `"כמה נקודות יש לי?"` → Uses StatisticsRetrieverTool automatically
+- `"אפס הכל"` → Uses DataManagerTool with confirmation
+- `"מה לעשות היום?"` → Uses WorkoutSuggesterTool automatically
+
+**Key Features**:
+- **Intent Recognition**: AI understands various ways of saying the same thing
+- **Tool Auto-Selection**: No need to remember specific commands
+- **Safety Features**: Confirmations for destructive operations
+- **Hebrew/English Support**: Handles both languages naturally
+- **Context Awareness**: Uses conversation history for better understanding
 
 ### Real-time Features Architecture
 - **WebSocket Handler**: `app/websocket/handlers.py` manages connections
@@ -228,8 +272,9 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:4000
 - `backend/app/services/gamification_service.py`: Points and achievements
 - `backend/app/models/models.py`: Database models and schemas
 - `src/agents/mongodb_memory.py`: MongoDB conversation persistence
-- `src/agents/personal_sweatbot_enhanced.py`: PersonalSweatBot with MongoDB integration
-- `src/mastra/agents/`: AI coaching agents
+- `src/agents/personal_sweatbot_with_tools.py`: **Advanced tool-based SweatBot (CURRENT)**
+- `src/agents/personal_sweatbot_enhanced.py`: Legacy enhanced bot (deprecated)
+- `src/agents/tools/`: Specialized tool modules for intelligent function calling
 
 ### Frontend Components
 - `app/page.tsx`: Main application interface
@@ -242,6 +287,103 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:4000
 - `models/transformers/`: Cached Whisper models (5GB+)
 - `gamification_data/`: Achievement and progress data
 - `.bmad-core/`: BMAD agent configurations
+
+## Tool-Based Architecture (Current System)
+
+### Overview
+SweatBot now uses an **intelligent tool-based architecture** where the AI agent automatically selects the appropriate tool based on natural language input. Users don't need to memorize commands or specific syntax.
+
+### How It Works
+1. **User speaks naturally**: "עשיתי 20 סקוואטים" or "Show me my progress"
+2. **AI understands intent**: Determines what the user wants to accomplish
+3. **Tool auto-selection**: Chooses the appropriate tool automatically
+4. **Action execution**: Tool handles the specific task (logging, retrieving stats, etc.)
+5. **Natural response**: AI responds conversationally in Hebrew
+
+### Available Tools & Natural Language Triggers
+
+#### ExerciseLoggerTool
+**Purpose**: Log exercises to database with point calculation
+**Triggered by**:
+- "עשיתי 20 סקוואטים" (I did 20 squats)
+- "רצתי 5 קילומטר" (I ran 5 km)
+- "סיימתי אימון רגליים" (Finished leg workout)
+- "Just did 30 pushups"
+- "Went for a 2km run"
+
+#### StatisticsRetrieverTool
+**Purpose**: Get points, progress, and workout statistics
+**Triggered by**:
+- "כמה נקודות יש לי?" (How many points do I have?)
+- "מה ההתקדמות שלי?" (What's my progress?)
+- "Show me my stats"
+- "תראה לי את הסטטיסטיקות" (Show me the statistics)
+- "How am I doing?"
+
+#### DataManagerTool
+**Purpose**: Reset points or clear data (with safety confirmations)
+**Triggered by**:
+- "אפס את הנקודות שלי" (Reset my points)
+- "אני רוצה להתחיל מחדש" (I want to start over)
+- "Delete my data"
+- "Clear everything"
+- "Start fresh"
+
+#### GoalSetterTool
+**Purpose**: Set and track fitness goals
+**Triggered by**:
+- "אני רוצה להגיע ל-100 נקודות השבוע" (I want to reach 100 points this week)
+- "קבע לי יעד של 50 סקוואטים" (Set me a goal of 50 squats)
+- "Set a running goal for me"
+- "What are my current goals?"
+
+#### ProgressAnalyzerTool
+**Purpose**: Analyze trends and provide insights
+**Triggered by**:
+- "איך אני מתקדם?" (How am I progressing?)
+- "תן לי תובנות על האימונים" (Give me insights about workouts)
+- "Analyze my progress"
+- "What are my patterns?"
+
+#### WorkoutSuggesterTool
+**Purpose**: Suggest personalized workouts
+**Triggered by**:
+- "מה לעשות היום?" (What should I do today?)
+- "תציע לי אימון" (Suggest me a workout)
+- "What should I do next?"
+- "אני מתחיל, מה מומלץ?" (I'm starting, what's recommended?)
+
+### Usage Examples
+
+```python
+# Initialize the advanced bot
+from src.agents.personal_sweatbot_with_tools import PersonalSweatBotWithTools
+
+bot = PersonalSweatBotWithTools()
+
+# Natural conversations - no commands needed
+bot.chat("עשיתי 25 סקוואטים")  # Logs exercise automatically
+bot.chat("כמה נקודות יש לי?")    # Shows statistics automatically
+bot.chat("מה לעשות עכשיו?")      # Suggests workout automatically
+```
+
+### Benefits of Tool-Based Architecture
+
+1. **Natural Communication**: No need to learn specific commands
+2. **Intent Understanding**: AI understands various phrasings of the same request  
+3. **Automatic Tool Selection**: AI chooses the right tool behind the scenes
+4. **Extensible**: Easy to add new tools for new functionality
+5. **Safe Operations**: Confirmations built into destructive operations
+6. **Multilingual**: Handles both Hebrew and English naturally
+7. **Context Aware**: Uses conversation history for better understanding
+
+### Developer Usage
+
+When working with the tool-based system:
+- **Use**: `PersonalSweatBotWithTools` (current)
+- **Avoid**: `PersonalSweatBotEnhanced` (legacy, pattern-based)
+- **Test**: Natural language input, not specific commands
+- **Extend**: Add new tools to `src/agents/tools/` directory
 
 ## Development Principles
 

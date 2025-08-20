@@ -102,3 +102,9 @@ postgres_data/
 test_*.py
 debug_*.py
 *_test.py
+
+# Embedded Git Repositories
+personal-ui/
+
+# Windows Path Issues
+"D:\MY PROJECTS"*
