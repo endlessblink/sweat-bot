@@ -1,0 +1,59 @@
+{
+  "default_language": "he",
+  "user_id": "default_user",
+  
+  "voice_settings": {
+    "voice_model": "ivrit",
+    "voice_personality": "Hila",
+    "voice_activated": true,
+    "hotkey": "ctrl+space",
+    "recording_duration": 5
+  },
+  
+  "coach_settings": {
+    "coach_personality": "supportive",
+    "ai_api": "groq",
+    "motivational_messages": true,
+    "technical_feedback": true
+  },
+  
+  "google_sheets": {
+    "enabled": true,
+    "credentials_file": "credentials.json",
+    "spreadsheet_name": "Hebrew_CrossFit_Tracker"
+  },
+  
+  "gamification": {
+    "enabled": true,
+    "storage_path": "gamification_data",
+    "achievement_notifications": true,
+    "leaderboard_enabled": true
+  },
+  
+  "food_analysis": {
+    "enabled": true,
+    "api_provider": "local",
+    "auto_log_meals": true
+  },
+  
+  "instagram_integration": {
+    "enabled": false,
+    "username": "",
+    "auto_post_achievements": false,
+    "post_schedule": "weekly"
+  },
+  
+  "notifications": {
+    "daily_reminders": true,
+    "reminder_times": ["08:00", "18:00"],
+    "weekly_summary": true,
+    "summary_day": "sunday",
+    "summary_time": "20:00"
+  },
+  
+  "api_keys": {
+    "groq_api_key": "YOUR_GROQ_API_KEY",
+    "openai_api_key": "YOUR_OPENAI_API_KEY",
+    "elevenlabs_api_key": "YOUR_ELEVENLABS_API_KEY"
+  }
+}

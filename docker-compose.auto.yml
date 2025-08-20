@@ -1,0 +1,140 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: sweatbot_postgres
+    environment:
+      POSTGRES_DB: hebrew_fitness
+      POSTGRES_USER: fitness_user
+      POSTGRES_PASSWORD: secure_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    networks:
+      - sweatbot_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fitness_user -d hebrew_fitness"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: sweatbot_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sweatbot_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes --requirepass sweatbot_redis_pass
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: sweatbot_backend
+    env_file:
+      - .env.docker
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://fitness_user:secure_password@postgres:5432/hebrew_fitness}
+      - REDIS_URL=${REDIS_URL:-redis://:sweatbot_redis_pass@redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:-your-super-secret-key-change-in-production}
+      - ALGORITHM=HS256
+      - DEBUG=${DEBUG:-true}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://localhost:8000}
+      - WHISPER_MODEL_SIZE=base
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MODEL_PATH=/app/models
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Only mount source code, not dependencies
+      - ./backend/app:/app/app:rw
+      - ./backend/alembic:/app/alembic:rw
+      - ./backend/scripts:/app/scripts:rw
+      - whisper_models:/app/models
+      # Explicitly exclude local installations
+      - /app/__pycache__
+      - /app/.pytest_cache
+      - /app/venv
+    networks:
+      - sweatbot_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: sweatbot_frontend
+    env_file:
+      - .env.docker
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8000}
+      - NODE_ENV=development
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      # Only mount source code, not dependencies
+      - ./frontend/app:/app/app:rw
+      - ./frontend/components:/app/components:rw
+      - ./frontend/contexts:/app/contexts:rw
+      - ./frontend/lib:/app/lib:rw
+      - ./frontend/public:/app/public:rw
+      - ./frontend/styles:/app/styles:rw
+      # Configuration files
+      - ./frontend/next.config.js:/app/next.config.js:ro
+      - ./frontend/tailwind.config.js:/app/tailwind.config.js:ro
+      - ./frontend/tsconfig.json:/app/tsconfig.json:ro
+      # Explicitly exclude local installations
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - sweatbot_network
+    depends_on:
+      - backend
+    restart: unless-stopped
+    command: npm run dev
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  whisper_models:
+    driver: local
+
+networks:
+  sweatbot_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

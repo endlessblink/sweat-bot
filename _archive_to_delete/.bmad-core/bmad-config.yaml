@@ -1,0 +1,168 @@
+# BMAD Method Configuration for SweatBot
+# Universal AI Agent Framework Configuration
+
+project:
+  name: SweatBot
+  version: 1.0.0
+  description: Hebrew Fitness Tracking AI System with Voice Recognition
+  domain: fitness-health
+  
+agents:
+  analyst:
+    role: Business Analyst
+    responsibilities:
+      - Analyze fitness tracking requirements
+      - Research Hebrew language processing needs
+      - Define user personas and journey maps
+      - Create detailed requirements documentation
+    context_files:
+      - hebrew-crossfit-ai/docs/*.md
+      - memories/**/*.md
+      - tasks/**/*.md
+      
+  product_manager:
+    role: Product Manager
+    responsibilities:
+      - Define product vision and roadmap
+      - Prioritize features and user stories
+      - Create PRD (Product Requirements Document)
+      - Manage stakeholder expectations
+    outputs:
+      - .bmad-core/docs/PRD.md
+      - .bmad-core/docs/roadmap.md
+      
+  architect:
+    role: Solutions Architect
+    responsibilities:
+      - Design system architecture
+      - Define technical specifications
+      - Create integration patterns
+      - Document API contracts
+    context_files:
+      - hebrew-fitness-hybrid/README.md
+      - .squad/role-definition-*.md
+    outputs:
+      - .bmad-core/docs/architecture.md
+      - .bmad-core/docs/api-spec.yaml
+      
+  scrum_master:
+    role: Scrum Master
+    responsibilities:
+      - Transform PRD into development stories
+      - Create detailed implementation tasks
+      - Manage sprint planning
+      - Track progress and blockers
+    story_format:
+      template: .bmad-core/templates/story-template.md
+      output_dir: .bmad-core/stories/
+      
+  developer:
+    role: Development Agent
+    responsibilities:
+      - Implement user stories
+      - Write clean, tested code
+      - Follow architectural guidelines
+      - Document implementation details
+    languages:
+      - python
+      - typescript
+      - javascript
+    frameworks:
+      - fastapi
+      - nextjs
+      - react
+      
+  qa_engineer:
+    role: Quality Assurance
+    responsibilities:
+      - Review code quality
+      - Execute test scenarios
+      - Validate requirements
+      - Report issues and improvements
+    test_types:
+      - unit
+      - integration
+      - e2e
+      - hebrew_language
+      
+workflow:
+  phases:
+    1_planning:
+      agents: [analyst, product_manager, architect]
+      duration: 2_days
+      outputs:
+        - PRD.md
+        - architecture.md
+        - api-spec.yaml
+        
+    2_sprint_planning:
+      agents: [scrum_master]
+      duration: 1_day
+      inputs:
+        - PRD.md
+        - architecture.md
+      outputs:
+        - sprint_backlog.md
+        - story_files/*.md
+        
+    3_development:
+      agents: [developer, qa_engineer]
+      duration: 5_days
+      inputs:
+        - story_files/*.md
+      outputs:
+        - code_implementation
+        - test_results.md
+        
+    4_review:
+      agents: [product_manager, qa_engineer]
+      duration: 1_day
+      outputs:
+        - release_notes.md
+        - feedback.md
+
+integrations:
+  squad_engineering:
+    enabled: true
+    sync_with: .squad/
+    role_mapping:
+      backend: developer
+      frontend: developer
+      ai: architect
+      qa: qa_engineer
+      
+  existing_code:
+    hebrew_models: hebrew-crossfit-ai/src/core/
+    hybrid_backend: hebrew-fitness-hybrid/backend/
+    hybrid_frontend: hebrew-fitness-hybrid/frontend/
+    
+expansion_packs:
+  fitness_domain:
+    name: Fitness & Health AI Pack
+    version: 1.0.0
+    features:
+      - Exercise recognition patterns
+      - Nutrition tracking templates
+      - Workout plan generation
+      - Progress analytics
+      - Gamification mechanics
+      
+context_engineering:
+  max_context_size: 100000
+  include_patterns:
+    - "*.py"
+    - "*.ts"
+    - "*.tsx"
+    - "*.md"
+  exclude_patterns:
+    - "node_modules/**"
+    - "venv/**"
+    - "*.pyc"
+    - ".git/**"
+    
+ai_models:
+  preferred: claude-3
+  fallback: gpt-4
+  specialized:
+    hebrew_processing: whisper-large-v3
+    fitness_coaching: gemini-pro

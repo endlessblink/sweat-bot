@@ -1,0 +1,29 @@
+# Hebrew CrossFit AI - Web App Requirements
+
+# Core web framework
+streamlit>=1.28.0
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Database
+sqlite3  # Built into Python
+
+# Visualization
+plotly>=5.15.0
+
+# API integration
+requests>=2.31.0
+
+# Date/time handling
+python-dateutil>=2.8.0
+
+# Optional: For production deployment
+# uvicorn>=0.23.0  # If using FastAPI
+# fastapi>=0.104.0  # For backend API
+# sqlalchemy>=2.0.0  # For advanced database operations
+# psycopg2-binary>=2.9.0  # For PostgreSQL
+# python-multipart>=0.0.6  # For file uploads
+# python-jose[cryptography]>=3.3.0  # For JWT authentication
+# passlib[bcrypt]>=1.7.4  # For password hashing

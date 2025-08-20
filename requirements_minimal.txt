@@ -1,0 +1,30 @@
+# Core dependencies only - for faster setup
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Hebrew voice recognition
+librosa>=0.10.0
+sounddevice>=0.4.6
+soundfile>=0.12.0
+SpeechRecognition>=3.10.0
+
+# Hebrew TTS
+pygame>=2.5.0
+gtts>=2.3.2
+requests>=2.31.0
+
+# AI and LLM
+groq>=0.4.0
+openai>=1.0.0
+
+# Google Sheets integration
+gspread>=5.10.0
+google-auth>=2.22.0
+
+# Automation and utilities
+pyautogui>=0.9.54
+keyboard>=0.13.5
+schedule>=1.2.0
+
+# Development tools
+python-dotenv>=1.0.0

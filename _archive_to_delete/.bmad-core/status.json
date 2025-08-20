@@ -1,0 +1,78 @@
+{
+  "timestamp": "2025-08-17T09:44:34.026Z",
+  "squadSync": {
+    "timestamp": "2025-08-17T07:49:29.596Z",
+    "roles": [
+      {
+        "name": "backend",
+        "hasDefinition": true,
+        "hasCommunication": true
+      },
+      {
+        "name": "frontend",
+        "hasDefinition": true,
+        "hasCommunication": true
+      },
+      {
+        "name": "ai",
+        "hasDefinition": true,
+        "hasCommunication": true
+      },
+      {
+        "name": "qa",
+        "hasDefinition": true,
+        "hasCommunication": true
+      }
+    ],
+    "blockers": [
+      {
+        "role": "frontend",
+        "blockers": "- Waiting for API endpoint specifications"
+      },
+      {
+        "role": "ai",
+        "blockers": "- Model size optimization needed (currently 5GB)"
+      },
+      {
+        "role": "qa",
+        "blockers": "- No test environment set up yet"
+      }
+    ]
+  },
+  "activeBlockers": [
+    {
+      "role": "frontend",
+      "blockers": "- Waiting for API endpoint specifications"
+    },
+    {
+      "role": "ai",
+      "blockers": "- Model size optimization needed (currently 5GB)"
+    },
+    {
+      "role": "qa",
+      "blockers": "- No test environment set up yet"
+    }
+  ],
+  "roles": [
+    {
+      "name": "backend",
+      "hasDefinition": true,
+      "hasCommunication": true
+    },
+    {
+      "name": "frontend",
+      "hasDefinition": true,
+      "hasCommunication": true
+    },
+    {
+      "name": "ai",
+      "hasDefinition": true,
+      "hasCommunication": true
+    },
+    {
+      "name": "qa",
+      "hasDefinition": true,
+      "hasCommunication": true
+    }
+  ]
+}

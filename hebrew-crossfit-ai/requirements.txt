@@ -1,0 +1,59 @@
+# Hebrew CrossFit AI - Consolidated Dependencies
+# Core Python version requirement
+python>=3.9
+
+# AI and Speech Services
+openai>=1.0.0
+groq>=0.4.0
+google-generativeai>=0.3.0
+speechrecognition>=3.10.0
+pyttsx3>=2.90
+
+# Audio Processing
+pyaudio>=0.2.11
+sounddevice>=0.4.6
+soundfile>=0.12.1
+
+# ML/NLP Libraries
+transformers>=4.30.0
+torch>=2.0.0
+librosa>=0.10.0
+
+# Web Framework & APIs
+streamlit>=1.28.0
+fastapi>=0.104.0
+uvicorn>=0.23.0
+websockets>=11.0.0
+
+# Data Processing & Visualization
+pandas>=2.0.0
+numpy>=1.24.0
+plotly>=5.15.0
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
+# Utilities
+python-dateutil>=2.8.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+click>=8.1.0
+
+# Security
+cryptography>=41.0.0
+
+# Development Tools (optional)
+pytest>=7.4.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Hebrew Language Support
+python-bidi>=0.4.2
+pyqt5>=5.15.0  # For desktop UI
+qtpy>=2.3.0
+
+# Additional Audio Libraries
+pygame>=2.5.0  # For audio playback
+scipy>=1.11.0  # For audio processing
