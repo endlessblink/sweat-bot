@@ -1,4 +1,10 @@
+# ==========================================
+# SweatBot Comprehensive .gitignore
+# ==========================================
+
+# ==========================================
 # Python
+# ==========================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,95 +22,351 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+*.manifest
+*.spec
 
-# Virtual Environment
+# Python Virtual Environments
 venv/
 ENV/
 env/
 .venv
+.env*/
+venv.bak/
+virtualenv/
+pipenv/
 
-# IDE
+# ==========================================
+# Node.js & Frontend
+# ==========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.npm
+.yarn-integrity
+.yarn/
+.parcel-cache
+.next/
+out/
+.nuxt
+dist/
+.cache/
+.vuepress/dist
+.temp
+.docusaurus
+.serverless/
+.fusebox/
+.dynamodb/
+.tern-port
+.vscode-test
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Vite
+dist-ssr
+*.local
+
+# ==========================================
+# IDEs and Editors
+# ==========================================
 .vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
 .idea/
+*.sublime-project
+*.sublime-workspace
 *.swp
 *.swo
 *~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.code-workspace
 
-# Project specific
-models/
-audio_recordings/
-workout_logs/
-vectors/
-screenshots/
-*.log
-backend_*.log
-frontend_*.log
-*.wav
-*.mp3
-
-# Environment variables
+# ==========================================
+# Environment Variables & Configuration
+# ==========================================
 .env
+.env.*
+!.env.example
+!.env.template
 .env.local
-.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+config/local.json
+config/production.json
+secrets/
+*.pem
+*.key
+*.crt
+.sweatbot_token
 
-# Port configuration files
-.ports.json
-.docker-ports.json
-.env.docker
-frontend/.env.local
+# Do NOT ignore unified env for this project
+!.env.unified
 
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
+# ==========================================
+# Databases & Data Storage
+# ==========================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+mongodb_data/
+postgres_data/
+redis_data/
+data/volumes/
+docker-volumes/
 
-# Temporary files
+# ==========================================
+# Logs & Temporary Files
+# ==========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 *.tmp
 *.temp
 *.bak
+*.backup
 *.cache
+*.pid
+*.seed
+*.pid.lock
 
-# Test coverage
+# PM2 logs
+.pm2/logs/
+pm2-*.log
+
+# ==========================================
+# AI Models & Large Files
+# ==========================================
+models/
+model_cache/
+*.ckpt
+*.pth
+*.h5
+*.pb
+*.onnx
+*.safetensors
+*.bin
+whisper_models/
+ollama_models/
+transformers_cache/
+.ollama/
+
+# Audio & Media Files
+audio_recordings/
+*.wav
+*.mp3
+*.m4a
+*.ogg
+*.webm
+recordings/
+uploads/
+
+# ==========================================
+# Testing & Coverage
+# ==========================================
+coverage/
+*.lcov
+.nyc_output
 htmlcov/
 .coverage
 .coverage.*
 .pytest_cache/
 .tox/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+test-results/
+jest-results/
+cypress/screenshots/
+cypress/videos/
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# ==========================================
+# Build Outputs
+# ==========================================
+build/
+dist/
+target/
+out/
+.next/
+.nuxt/
+.turbo/
+.vercel
+.netlify
 
-# pyenv
-.python-version
+# ==========================================
+# Docker
+# ==========================================
+docker-compose.override.yml
+.dockerignore
+docker-data/
+containers/
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
+# ==========================================
+# OS Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
 
-# Secrets
-*.pem
-*.key
-secrets/
+# ==========================================
+# Project Specific
+# ==========================================
+# Port configuration files
+.ports.json
+.docker-ports.json
 
-# Authentication & Tokens
-.sweatbot_token
-*.crt
-
-# MongoDB & Database Data
-mongodb_data/
-postgres_data/
-
-# Test Files
-test_*.py
+# Workspace & Session Files
+vectors/
+screenshots/
+gamification_data/
+workout_logs/
+test_*.json
 debug_*.py
 *_test.py
+test_report_*.json
 
-# Embedded Git Repositories
+# Session dropoff files (keep for documentation)
+!SESSION-DROPOFF-*.md
+
+# Embedded Git Repositories (submodules)
 personal-ui/
 
 # Windows Path Issues
+"D:\\MY PROJECTS"*
 "D:\MY PROJECTS"*
+
+# Keep Important Documentation
+!README.md
+!CLAUDE.md
+!START_GUIDE.md
+!QUICK_START.md
+!docs/
+
+# Keep Configuration Templates
+!docker-compose.yml
+!ecosystem.config.js
+!package.json
+!requirements.txt
+!.nvmrc
+
+# Memories (keep for context)
+!memories/
+
+# ==========================================
+# Security
+# ==========================================
+# API Keys and Secrets
+api_keys/
+credentials/
+auth/
+.auth/
+service-account.json
+firebase-admin-sdk.json
+
+# SSL Certificates
+*.p12
+*.pfx
+ssl/
+certs/
+
+# ==========================================
+# Miscellaneous
+# ==========================================
+# Backup files
+backup/
+backups/
+*.backup
+*.old
+*.orig
+
+# Lock files (controversial - uncomment if needed)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+# Gemfile.lock
+# poetry.lock
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# MacOS metadata
+__MACOSX/
+
+# JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.metadata/
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ==========================================
+# End of .gitignore
+# ==========================================

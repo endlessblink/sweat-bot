@@ -11,49 +11,117 @@ SweatBot is a comprehensive Hebrew fitness tracking AI system featuring voice re
 - **Development Framework**: BMAD Method (Business-Minded Agile Development) with Squad Engineering methodology
 
 ## IMPORTANT PORT CONFIGURATION
-⚠️ **PORT 3001 IS RESERVED** - DO NOT USE PORT 3001 for any services. It conflicts with other applications.
-⚠️ **PORT 4444 MAY ALSO BE IN USE** - If port 4444 is taken, use port 4445 as the alternative.
-✅ **PERSONAL SWEATBOT UI** - Currently running on port 4445 (personal-ui directory)
+🎯 **STANDARDIZED PORT ALLOCATION (8000-8005 ONLY)**:
+- **Port 8000**: Main SweatBot Backend (FastAPI with runtime fallback)
+- **Port 8001**: Reserved for auxiliary services
+- **Port 8002**: Personal SweatBot UI (Vite frontend)
+- **Port 8003**: Available for additional services
+- **Port 8004**: Available for additional services  
+- **Port 8005**: Available for additional services
+
+⚠️ **NO OTHER PORTS ALLOWED** - All SweatBot services must use ports 8000-8005 only
 
 ## Architecture & Technology Stack
 
 ### Core Technology Stack
 - **Backend**: FastAPI + Python 3.11 + AsyncPG
-- **Frontend**: Next.js 15 + TypeScript + React 19
+- **Frontend**: Vite + React + TypeScript
 - **Database**: PostgreSQL with SQLite fallback
 - **Conversation Storage**: MongoDB for persistent chat history
 - **Cache**: Redis for session management
-- **AI Framework**: Mastra Core + Phidata for agent orchestration
+- **AI Framework**: Phidata + Custom tools for agent orchestration
 - **Voice Processing**: Whisper (ivrit-ai/whisper-large-v3) for Hebrew recognition
 - **Real-time**: WebSocket connections via FastAPI
-- **Deployment**: Docker + Docker Compose with multiple profiles
+- **Deployment**: Mixed architecture (Docker for stateful services, PM2 for application layer)
 
-### Service Architecture
+### Service Architecture (Mixed Deployment)
+
 ```
-Frontend (Next.js) → API Gateway (FastAPI) → Exercise Data (PostgreSQL)
-       ↓                    ↓                      ↓
-WebSocket Client ←→ WebSocket Handler ←→ Redis Cache
-       ↓                    ↓                      ↓
-Voice Processing ←→ PersonalSweatBot ←→ Conversation Storage (MongoDB)
-                          ↓
-                   Mastra AI Agents
+╔══════════════════════════════════════════════════════════════╗
+║                     APPLICATION LAYER (PM2)                  ║
+╠═══════════════════════════════╤══════════════════════════════╣
+║ Frontend (Vite)               │ Backend API (FastAPI)        ║
+║ Port: 8004                    │ Port: 8000                   ║
+║ - React UI                    │ - Business Logic             ║
+║ - User Interface              │ - WebSocket Handler          ║
+║ - Real-time Updates           │ - API Routes                 ║
+╚═══════════════════════════════╧══════════════════════════════╝
+                                          │
+                    ┌─────────────────────┼─────────────────────┐
+                    ▼                     ▼                     ▼
+╔══════════════════════════════════════════════════════════════╗
+║                      DATA LAYER (DOCKER)                     ║
+╠════════════════╤════════════════╤════════════════════════════╣
+║ PostgreSQL     │ MongoDB        │ Redis                      ║
+║ Port: 8001     │ Port: 8002     │ Port: 8003                ║
+║ - Exercise Data│ - Conversations│ - Session Cache            ║
+║ - User Stats   │ - Chat History │ - Real-time Data          ║
+║ - Achievements │ - User Context │ - Temporary Storage        ║
+╚════════════════╧════════════════╧════════════════════════════╝
+                                          │
+                                          ▼
+╔══════════════════════════════════════════════════════════════╗
+║                       AI LAYER (DOCKER)                      ║
+╠═══════════════════════════════════════════════════════════════╣
+║ AI Agent Service                                             ║
+║ Port: 8005                                                   ║
+║ ┌───────────────────────────┬────────────────────────────┐  ║
+║ │ Local Models              │ External APIs              │  ║
+║ ├───────────────────────────┼────────────────────────────┤  ║
+║ │ • Whisper (Hebrew STT)    │ • Gemini API               │  ║
+║ │ • Gemma3n (via Ollama)    │ • Groq API                 │  ║
+║ │ • LLaVA 2 (Vision)        │ • OpenAI API (future)      │  ║
+║ │ • Future Local Models     │ • Anthropic API (future)   │  ║
+║ └───────────────────────────┴────────────────────────────┘  ║
+╚═══════════════════════════════════════════════════════════════╝
 ```
 
-### Dual-Database Architecture
-```
-PersonalSweatBot Agent
-       ├─── MongoDBMemory ──→ Conversations & Chat History (MongoDB)
-       └─── FastAPI Backend ──→ Exercise Data & Statistics (PostgreSQL)
-```
+### Data Flow
+1. **User Interaction**: Frontend (8004) → Backend API (8000)
+2. **Data Operations**: Backend API → PostgreSQL/MongoDB/Redis (8001-8003)
+3. **AI Processing**: Backend API → AI Agent Service (8005)
+4. **Model Selection**: AI Agent automatically selects best available model
+5. **Response Flow**: AI Agent → Backend API → Frontend
+
+### Deployment Strategy
+- **Stateful Services (Docker)**: All databases and AI services that need persistent state
+- **Stateless Services (PM2)**: Application logic that can be easily restarted/scaled
+- **Benefits**: 
+  - Database persistence and isolation
+  - Easy application updates without data loss
+  - Better resource management for AI models
+  - Clear separation of concerns
 
 ## Development Commands
 
-### Quick Start Commands
+### 🚀 Unified Launch System (Recommended)
 ```bash
-# Start complete system (Docker - Recommended)
+# Interactive mode selection (best for first-time users)
+./start-sweatbot.sh
+
+# Quick start options
+./start-sweatbot.sh --mode=minimal     # Core AI chat only (~2min startup)
+./start-sweatbot.sh --mode=standard    # Full features (~5min startup)  
+./start-sweatbot.sh --mode=full        # Everything including ML models (~10min)
+./start-sweatbot.sh --frontend-only    # UI development (~1min)
+
+# Advanced options
+./start-sweatbot.sh --debug            # Enable debug output
+./start-sweatbot.sh --force-reinstall  # Clean dependency installation
+./start-sweatbot.sh --help             # Show all options
+```
+
+### Legacy Launch Commands (Deprecated)
+```bash
+# Old launch scripts (still functional but replaced by unified system)
+./launch-sweatbot-minimal.sh    # → Use --mode=minimal instead
+./launch-sweatbot-fixed.sh      # → Use --mode=standard instead  
+./launch-sweatbot.sh            # → Use --mode=full instead
+
+# Docker Compose (alternative deployment)
 docker-compose up -d
 
-# Development mode (manual)
+# Manual development mode
 bun run dev              # Frontend on port 4000
 bun run dev:backend      # Backend on port 8000
 

@@ -9,6 +9,7 @@ from typing import List, Optional
 import os
 from pathlib import Path
 
+
 class Settings(BaseSettings):
     """Application settings with environment variable support"""
     
@@ -43,17 +44,16 @@ class Settings(BaseSettings):
         env="REDIS_URL"
     )
     
-    # CORS
-    CORS_ORIGINS: List[str] = Field(
-        default=[
-            "http://localhost:3000",
-            "http://localhost:4567", 
-            "http://localhost:5173",  # Vite dev server default
-            "http://localhost:5174",  # Vite dev server alternate
-            "http://localhost:8000",
-            "https://sweatbot.app"
-        ]
+    # CORS - Use string type and parse it manually
+    CORS_ORIGINS_STR: str = Field(
+        default="http://localhost:8000,http://localhost:8001,http://localhost:8002,http://localhost:8003,http://localhost:8004,http://localhost:8005,https://sweatbot.app",
+        env="CORS_ALLOWED_ORIGINS"
     )
+    
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        """Parse CORS origins from comma-separated string"""
+        return [origin.strip() for origin in self.CORS_ORIGINS_STR.split(',') if origin.strip()]
     
     # Hebrew Models
     MODEL_PATH: Path = Field(
@@ -108,7 +108,7 @@ class Settings(BaseSettings):
         return path
     
     class Config:
-        env_file = [".env", "../.env"]  # Look in current dir and parent dir
+        env_file = [".env", "../.env", ".env.unified"]  # Look in current dir, parent dir, and unified env
         case_sensitive = True
         
     @property
