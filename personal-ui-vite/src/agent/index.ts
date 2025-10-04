@@ -10,6 +10,7 @@ import { OpenAIProvider } from './providers/openai';
 import { LocalModelsProvider } from './providers/localModels';
 import { MongoMemory } from './memory/mongoMemory';
 import { sanitizeResponse, isResponseSafe } from './utils/responseSanitizer';
+import { getOrCreateGuestToken } from '../utils/auth';
 
 export interface SweatBotConfig {
   userId?: string;
@@ -170,9 +171,10 @@ export class SweatBotAgent {
   }
   
   async chat(message: string): Promise<string> {
+    // Ensure the message is properly encoded (define outside try-catch for scope)
+    const cleanMessage = this.sanitizeInput(message);
+
     try {
-      // Ensure the message is properly encoded
-      const cleanMessage = this.sanitizeInput(message);
       
       // Add conversation context to the message
       const context = this.conversationHistory.length > 0 
@@ -248,19 +250,9 @@ export class SweatBotAgent {
     } catch (error) {
       console.error('SweatBot chat error:', error);
       console.error('Error stack:', error.stack);
-      
-      // ENHANCED: Try Hebrew parsing fallback before generic error
-      const hebrewParseResult = this.parseHebrewExercise(cleanMessage);
-      if (hebrewParseResult) {
-        console.log('Using Hebrew parsing fallback for:', cleanMessage);
-        // Store in conversation history
-        this.conversationHistory.push({role: 'user', content: cleanMessage});
-        this.conversationHistory.push({role: 'assistant', content: hebrewParseResult});
-        return hebrewParseResult;
-      }
-      
-      // Final fallback response
-      return this.getFallbackResponse(message);
+
+      // No hardcoded fallbacks - let the user know there's a technical issue
+      return 'מצטער, יש בעיה טכנית כרגע. אנא נסה שוב בעוד רגע או בדוק את החיבור לשירות.';
     }
   }
   
@@ -287,8 +279,8 @@ export class SweatBotAgent {
       return 'קיבלתי את ההודעה, אבל היה בעיה בתצוגה';
     }
     
-    // Remove any control characters that might cause encoding issues
-    return output.replace(/[\x00-\x1F\x7F]/g, '').trim();
+    // Remove control characters EXCEPT newlines (\n = 0x0A, \r = 0x0D)
+    return output.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
   }
   
   async *chatStream(message: string) {
@@ -296,59 +288,15 @@ export class SweatBotAgent {
       const stream = await this.agent.chatStream(message, {
         userId: this.userId
       });
-      
+
       for await (const chunk of stream) {
         yield chunk;
       }
     } catch (error) {
       console.error('SweatBot stream error:', error);
-      yield this.getFallbackResponse(message);
+      yield 'מצטער, יש בעיה טכנית כרגע. נסה שוב בעוד רגע.';
     }
   }
-  
-  private getFallbackResponse(message: string): string {
-    // CRITICAL: First try Hebrew exercise parsing fallback
-    const exerciseResult = this.parseHebrewExercise(message);
-    if (exerciseResult) {
-      return exerciseResult;
-    }
-    
-    // Only return generic response for true technical errors
-    return 'מצטער, יש בעיה טכנית. נסה שוב בעוד רגע.';
-  }
-  
-  private parseHebrewExercise(message: string): string | null {
-    // Hebrew exercise patterns for manual parsing when tools fail
-    const exercisePatterns = [
-      // "עשיתי X Y" patterns
-      { regex: /עשיתי\s+(\d+)\s+([^\s]+(?:\s+[^\s]+)*)/u, format: (match: RegExpMatchArray) => `רשמתי לך: ${match[2]} - ${match[1]} חזרות! כל הכבוד! 💪` },
-      
-      // "X Y" patterns (number + exercise)
-      { regex: /^(\d+)\s+([^\s]+(?:\s+[^\s]+)*)/u, format: (match: RegExpMatchArray) => `רשמתי לך: ${match[2]} - ${match[1]} חזרות! כל הכבוד! 💪` },
-      
-      // "רצתי X קילומטר" patterns
-      { regex: /רצתי\s+(\d+(?:\.\d+)?)\s*(?:קילומטר|ק"מ|קמ)/u, format: (match: RegExpMatchArray) => `רשמתי לך: ריצה - ${match[1]} ק"מ! כל הכבוד! 💪` },
-      
-      // Date + exercise patterns like "אתמול 24.8 - 4 טיפוסי חבל"
-      { regex: /(?:אתמול|היום|אמש)?\s*\d{1,2}\.\d{1,2}\s*-?\s*(\d+)\s+([^\s]+(?:\s+[^\s]+)*)/u, format: (match: RegExpMatchArray) => `רשמתי לך: ${match[2]} - ${match[1]} חזרות! כל הכבוד! 💪` },
-      
-      // Simple exercise mentions
-      { regex: /(?:טיפוסי חבל|סקוואטים|שכיבות סמיכה|משיכות|ברפיז?|ריצה|הליכה)/u, format: () => `איזה תרגיל מעולה! תוכל לתת לי יותר פרטים? כמה חזרות עשית?` }
-    ];
-    
-    const lowerMessage = message.toLowerCase();
-    
-    for (const pattern of exercisePatterns) {
-      const match = message.match(pattern.regex);
-      if (match) {
-        console.log('Hebrew exercise parsed manually:', match);
-        return pattern.format(match);
-      }
-    }
-    
-    return null;
-  }
-  
   
   private async executeTools(toolCalls: any[]): Promise<string | null> {
     try {
@@ -449,113 +397,275 @@ export class SweatBotAgent {
           required: ['exercise_name']
         },
         execute: async (params: any) => {
-          // Build a natural response based on what was provided
-          let response = `רשמתי לך: ${params.exercise_name}`;
-          
-          // Handle different exercise types naturally
-          if (params.distance_km) {
-            response += ` - ${params.distance_km} ק"מ`;
-            if (params.duration_minutes) {
-              response += ` ב-${params.duration_minutes} דקות`;
+          try {
+            // Get valid auth token
+            const token = await getOrCreateGuestToken();
+
+            // Save to backend database
+            const exerciseData = {
+              name: params.exercise_name,
+              name_he: params.exercise_name, // AI already provides Hebrew
+              reps: params.repetitions,
+              sets: params.sets || 1,
+              weight_kg: params.weight_kg,
+              distance_km: params.distance_km,
+              duration_seconds: params.duration_minutes ? params.duration_minutes * 60 : undefined
+            };
+
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exercises/log`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(exerciseData)
+            });
+
+            if (!response.ok) {
+              console.error('Failed to log exercise:', await response.text());
+              return `נרשם לי שעשית ${params.exercise_name}! (שמירה מקומית - בדוק את החיבור לשרת)`;
             }
-          } else if (params.repetitions) {
-            const reps = params.repetitions;
-            const sets = params.sets || 1;
-            
-            if (sets > 1) {
-              response += ` - ${sets} סטים של ${reps} חזרות`;
-            } else {
-              response += ` - ${reps} חזרות`;
+
+            const savedExercise = await response.json();
+
+            // Build natural response
+            let result = `רשמתי לך: ${params.exercise_name}`;
+
+            if (params.distance_km) {
+              result += ` - ${params.distance_km} ק"מ`;
+              if (params.duration_minutes) {
+                result += ` ב-${params.duration_minutes} דקות`;
+              }
+            } else if (params.repetitions) {
+              const reps = params.repetitions;
+              const sets = params.sets || 1;
+
+              if (sets > 1) {
+                result += ` - ${sets} סטים של ${reps} חזרות`;
+              } else {
+                result += ` - ${reps} חזרות`;
+              }
+
+              if (params.weight_kg) {
+                result += ` עם ${params.weight_kg} ק״ג`;
+              }
+            } else if (params.duration_minutes) {
+              result += ` - ${params.duration_minutes} דקות`;
             }
-            
-            if (params.weight_kg) {
-              response += ` עם ${params.weight_kg} ק״ג`;
+
+            result += `! כל הכבוד! 💪`;
+
+            if (savedExercise.points_earned) {
+              result += `\n\n🎯 +${savedExercise.points_earned} נקודות`;
             }
-          } else if (params.duration_minutes) {
-            response += ` - ${params.duration_minutes} דקות`;
+
+            if (savedExercise.is_personal_record) {
+              result += `\n\n🏆 שיא אישי חדש!`;
+            }
+
+            return result;
+          } catch (error) {
+            console.error('Exercise logging error:', error);
+            return `נרשם לי ${params.exercise_name}! (לא הצלחתי לשמור בשרת - בדוק חיבור)`;
           }
-          
-          response += `! כל הכבוד! 💪`;
-          return response;
         }
       },
       {
         name: 'statsRetriever',
-        description: 'הצגת סטטיסטיקות ונקודות',
+        description: 'הצגת סטטיסטיקות ונקודות אמיתיות מהמערכת',
         parameters: {
-          period: { type: 'string', description: 'תקופה: week/month/year' }
+          type: 'object',
+          properties: {
+            period: { type: 'string', description: 'תקופה: week/month/year' }
+          }
         },
         execute: async (params: any) => {
-          return `הסטטיסטיקות שלך:\n📊 150 נקודות השבוע\n💪 12 אימונים החודש\n🔥 רצף של 3 ימים`;
+          try {
+            const token = await getOrCreateGuestToken();
+
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exercises/statistics`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (!response.ok) {
+              return 'אין עדיין נתוני אימונים. התחל לתעד את האימונים שלך!';
+            }
+
+            const data = await response.json();
+            const total = data.total_stats;
+
+            let result = `📊 **הסטטיסטיקות שלך:**\n\n`;
+            result += `🎯 סה"כ נקודות: ${total.total_points || 0}\n\n`;
+            result += `💪 סה"כ תרגילים: ${total.total_exercises || 0}\n\n`;
+            result += `🔁 סה"כ חזרות: ${total.total_reps || 0}\n\n`;
+
+            if (total.total_weight_kg > 0) {
+              result += `🏋️ סה"כ משקל: ${Math.round(total.total_weight_kg)} ק"ג\n\n`;
+            }
+
+            if (data.exercise_breakdown && data.exercise_breakdown.length > 0) {
+              result += `\n**התפלגות תרגילים:**\n\n`;
+              data.exercise_breakdown.slice(0, 5).forEach((ex: any) => {
+                result += `• ${ex.name}: ${ex.count} פעמים (${ex.points} נקודות)\n\n`;
+              });
+            }
+
+            return result;
+          } catch (error) {
+            console.error('Stats retrieval error:', error);
+            return 'לא הצלחתי לטעון את הסטטיסטיקות. ודא שהשרת פועל.';
+          }
         }
       },
       {
         name: 'workoutDetails',
         description: 'הצגת פירוט מלא של האימונים - השתמש כשהמשתמש שואל "מה האימונים", "איזה אימונים", "תראה לי את האימונים"',
         parameters: {
-          period: { type: 'string', description: 'תקופה: today/week/month/all_time', default: 'month' }
+          type: 'object',
+          properties: {
+            period: { type: 'string', description: 'תקופה: today/week/month/all_time', default: 'month' }
+          }
         },
         execute: async (params: any) => {
-          // Mock detailed workout data
-          const workouts = [
-            'יום ראשון: סקוואטים 3x20 (60 נקודות)',
-            'יום שני: ריצה 5 ק"מ ב-25 דקות (75 נקודות)',
-            'יום שלישי: שכיבות סמיכה 4x15 (45 נקודות)',
-            'יום רביעי: בק סקווט 5x5 @ 50kg (100 נקודות)',
-            'יום חמישי: טיפוסי חבל 1x4 (40 נקודות)',
-            'יום שישי: ברפיז 3x10 (50 נקודות)',
-            'שבת: דדליפט 3x8 @ 80kg (120 נקודות)',
-            'יום ראשון: קפיצות קופסה 4x12 (48 נקודות)',
-            'יום שני: משיכות 3x8 (55 נקודות)',
-            'יום שלישי: חתירה 2km ב-8 דקות (40 נקודות)',
-            'יום רביעי: וול בולס 3x20 @ 9kg (65 נקודות)',
-            'יום חמישי: דאבל אנדרס 5x50 (70 נקודות)'
-          ];
-          
-          return `📊 **פירוט 12 האימונים שלך החודש:**\n\n${workouts.join('\n')}\n\n**סה"כ: 768 נקודות**\n**ממוצע לאימון: 64 נקודות**`;
+          try {
+            const token = await getOrCreateGuestToken();
+
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exercises/history`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (!response.ok) {
+              return 'אין עדיין אימונים מתועדים. התחל לרשום את האימונים שלך!';
+            }
+
+            const exercises = await response.json();
+
+            if (!exercises || exercises.length === 0) {
+              return 'אין עדיין אימונים מתועדים. בוא נתחיל!';
+            }
+
+            let result = `📊 **האימונים שלך (${exercises.length} אחרונים):**\n\n`;
+
+            exercises.slice(0, 15).forEach((ex: any) => {
+              const date = new Date(ex.timestamp).toLocaleDateString('he-IL');
+              let line = `• ${ex.name_he}`;
+              if (ex.sets && ex.reps) {
+                line += ` - ${ex.sets}x${ex.reps}`;
+              }
+              if (ex.weight_kg) {
+                line += ` @ ${ex.weight_kg}kg`;
+              }
+              if (ex.distance_km) {
+                line += ` - ${ex.distance_km}km`;
+              }
+              line += ` (${ex.points_earned} נקודות) - ${date}`;
+              result += line + '\n\n';
+            });
+
+            return result;
+          } catch (error) {
+            console.error('Workout history error:', error);
+            return 'לא הצלחתי לטעון את היסטוריית האימונים.';
+          }
         }
       },
       {
         name: 'workoutSuggester',
-        description: 'הצעת אימון מותאם אישית',
+        description: 'הצעת אימון מותאם אישית על בסיס היסטוריית האימונים',
         parameters: {
-          muscleGroup: { type: 'string', description: 'קבוצת שרירים' },
-          duration: { type: 'number', description: 'זמן בדקות' }
+          type: 'object',
+          properties: {
+            muscleGroup: { type: 'string', description: 'קבוצת שרירים' },
+            duration: { type: 'number', description: 'זמן בדקות' }
+          }
         },
         execute: async (params: any) => {
-          return `הצעת אימון:\n1️⃣ 3x15 סקוואטים\n2️⃣ 3x10 שכיבות סמיכה\n3️⃣ 3x20 בטן\n4️⃣ 2 דקות פלאנק`;
+          // AI provides personalized suggestions based on conversation
+          return `בואו נתכנן אימון! על סמך מה שראיתי, אני ממליץ על אימון מאוזן. מה תרצה להתמקד בו היום?`;
         }
       },
       {
         name: 'dataManager',
-        description: 'ניהול נתונים ואיפוס',
+        description: 'ניהול נתונים ואיפוס - השתמש כשהמשתמש מבקש לאפס או למחוק נתונים',
         parameters: {
-          action: { type: 'string', description: 'reset/export/backup' }
+          type: 'object',
+          properties: {
+            action: { type: 'string', description: 'reset/clear', enum: ['reset', 'clear'] }
+          },
+          required: ['action']
         },
         execute: async (params: any) => {
-          if (params.action === 'reset') {
-            return `⚠️ האם אתה בטוח שברצונך לאפס את כל הנתונים? (כתוב "כן" לאישור)`;
+          try {
+            const token = await getOrCreateGuestToken();
+
+            if (params.action === 'reset' || params.action === 'clear') {
+              const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exercises/clear-all`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+
+              if (response.ok) {
+                return `✅ כל הנתונים נמחקו בהצלחה. אפשר להתחיל מחדש!`;
+              }
+              return `⚠️ לא הצלחתי למחוק את הנתונים. נסה שוב.`;
+            }
+            return `פעולה לא ידועה: ${params.action}`;
+          } catch (error) {
+            console.error('Data management error:', error);
+            return 'שגיאה בניהול הנתונים.';
           }
-          return `פעולת ${params.action} בוצעה בהצלחה`;
-        }
-      },
-      {
-        name: 'goalSetter',
-        description: 'הגדרת יעד כושר',
-        parameters: {
-          goal: { type: 'string', description: 'תיאור היעד' },
-          deadline: { type: 'string', description: 'תאריך יעד' }
-        },
-        execute: async (params: any) => {
-          return `🎯 היעד נקבע: ${params.goal}\n📅 תאריך יעד: ${params.deadline || 'לא הוגדר'}`;
         }
       },
       {
         name: 'progressAnalyzer',
-        description: 'ניתוח התקדמות',
-        parameters: {},
+        description: 'ניתוח התקדמות על בסיס נתונים אמיתיים מהמערכת',
+        parameters: {
+          type: 'object',
+          properties: {}
+        },
         execute: async (params: any) => {
-          return `📈 ניתוח התקדמות:\n✅ השתפרת ב-25% החודש\n📊 ממוצע של 4 אימונים בשבוע\n💪 הכי חזק בסקוואטים`;
+          try {
+            const token = await getOrCreateGuestToken();
+
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exercises/statistics`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (!response.ok) {
+              return 'אין מספיק נתונים לניתוח. המשך לאמן ותוכל לראות התקדמות!';
+            }
+
+            const data = await response.json();
+
+            if (data.weekly_progress && data.weekly_progress.length > 0) {
+              const total_points = data.weekly_progress.reduce((sum: number, day: any) => sum + (day.points || 0), 0);
+              const avg_per_day = Math.round(total_points / data.weekly_progress.length);
+
+              let result = `📈 **ניתוח ההתקדמות שלך:**\n\n`;
+              result += `🎯 ${total_points} נקודות ב-7 הימים האחרונים\n\n`;
+              result += `📊 ממוצע ${avg_per_day} נקודות ליום\n\n`;
+              result += `💪 ${data.weekly_progress.length} ימים פעילים\n\n`;
+
+              return result;
+            }
+
+            return 'התחל לאמן כדי לראות ניתוח התקדמות!';
+          } catch (error) {
+            console.error('Progress analysis error:', error);
+            return 'לא הצלחתי לנתח את ההתקדמות.';
+          }
         }
       }
     ];

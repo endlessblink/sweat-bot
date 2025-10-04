@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import ExerciseCard from './ui/ExerciseCard';
 import StatsChart from './ui/StatsChart';
 import WorkoutCard from './ui/WorkoutCard';
@@ -142,63 +143,20 @@ export default function SweatBotChat() {
     } catch (error) {
       // Remove loading message
       setMessages(prev => prev.filter(msg => !msg.isLoading));
-      
+
       console.error('Agent service connection failed:', error);
-      
-      // CRITICAL: Since the agent has Hebrew parsing fallback, try that first
-      // Import the Hebrew parsing logic if available
-      let fallbackResponse: string;
-      
-      // Check if it's a Hebrew exercise that we can parse manually
-      const hebrewExercisePatterns = [
-        // "עשיתי X Y" patterns
-        { regex: /עשיתי\s+(\d+)\s+([^\s]+(?:\s+[^\s]+)*)/u, format: (match) => `רשמתי! ${match[1]} ${match[2]} ✅\n[ראה סטטיסטיקות]` },
-        
-        // "X Y" patterns (number + exercise)
-        { regex: /^(\d+)\s+([^\s]+(?:\s+[^\s]+)*)/u, format: (match) => `רשמתי! ${match[1]} ${match[2]} ✅\n[ראה סטטיסטיקות]` },
-        
-        // "רצתי X קילומטר" patterns
-        { regex: /רצתי\s+(\d+(?:\.\d+)?)\s*(?:קילומטר|ק"מ|קמ)/u, format: (match) => `רשמתי! ריצה ${match[1]} ק"מ ✅\n[ראה סטטיסטיקות]` },
-        
-        // Date + exercise patterns like "אתמול 24.8 - 4 טיפוסי חבל"
-        { regex: /(?:אתמול|היום|אמש)?\s*\d{1,2}\.\d{1,2}\s*-?\s*(\d+)\s+([^\s]+(?:\s+[^\s]+)*)/u, format: (match) => `רשמתי! ${match[1]} ${match[2]} ✅\n[ראה סטטיסטיקות]` }
-      ];
-      
-      // Try each pattern
-      for (const pattern of hebrewExercisePatterns) {
-        const match = messageText.match(pattern.regex);
-        if (match) {
-          fallbackResponse = pattern.format(match);
-          break;
-        }
-      }
-      
-      // If no pattern matched, check for stats requests
-      if (!fallbackResponse) {
-        if (messageText.includes('סטטיסטיק') || messageText.includes('נקודות') || 
-            messageText.includes('stats') || messageText.includes('התקדמות') ||
-            messageText.includes('כמה') || messageText.includes('בדוק')) {
-          fallbackResponse = `📊 הסטטיסטיקות שלך:\n150 נקודות השבוע\n12 אימונים החודש\n[הצג פאנל מלא]`;
-        } else if (messageText.includes('טיפוסי חבל') || messageText.includes('סקוואטים') || 
-            messageText.includes('שכיבות סמיכה') || messageText.includes('שכיבות') ||
-            messageText.includes('משיכות') || messageText.includes('ברפי') ||
-            messageText.includes('ריצה') || messageText.includes('הליכה')) {
-          fallbackResponse = `כמה ${messageText.includes('רצתי') ? 'ק"מ רצת' : 'חזרות עשית'}?`;
-        } else {
-          fallbackResponse = `לא הבנתי. נסה: "עשיתי 20 סקוואטים" או "הראה סטטיסטיקות"`;
-        }
-      }
-      
-      const fallbackMessage: Message = {
+
+      // Show user-friendly error message
+      const errorMessage: Message = {
         role: 'assistant',
-        content: fallbackResponse,
+        content: `מצטער, יש לי בעיה זמנית. האם תוכל לנסות שוב? אם הבעיה חוזרת, ייתכן שצריך לבדוק את החיבור לשירות.`,
         type: 'markdown',
         agent: 'personal',
         timestamp: new Date()
       };
-      
-      setMessages(prev => [...prev, fallbackMessage]);
-      
+
+      setMessages(prev => [...prev, errorMessage]);
+
       // Refocus input even on error
       inputRef.current?.focus();
     } finally {
@@ -367,12 +325,18 @@ export default function SweatBotChat() {
       }
       
       return msg.type === 'markdown' ? (
-        <ReactMarkdown 
-          remarkPlugins={[remarkGfm]}
-          className="prose prose-invert max-w-none"
-        >
-          {msg.content}
-        </ReactMarkdown>
+        <div className="space-y-2">
+          {msg.content.split('\n\n').map((paragraph, index) => (
+            <div key={index} className="leading-relaxed">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkBreaks]}
+                className="prose prose-invert prose-sm max-w-none [&>p]:m-0"
+              >
+                {paragraph}
+              </ReactMarkdown>
+            </div>
+          ))}
+        </div>
       ) : (
         <span>{msg.content}</span>
       );
