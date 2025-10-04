@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SweatBot Hebrew Test</title>
+    <script type="module">
+        // Test the exact Hebrew flow specified by the user
+        console.log('Starting SweatBot Hebrew Test...');
+        
+        // Mock environment for testing
+        window.process = { env: {} };
+        
+        async function testHebrewFlow() {
+            try {
+                console.log('Testing Hebrew conversation flow:');
+                console.log('1. היי');
+                console.log('2. אני רוצה להזין אימון');
+                console.log('3. עשיתי היום 20 סקווטים ורצתי 200 מטרים');
+                
+                // Try to load the SweatBot agent
+                const response = await fetch('/src/agent/index.ts');
+                if (response.ok) {
+                    console.log('✅ Agent file accessible');
+                } else {
+                    console.error('❌ Agent file not accessible');
+                }
+                
+                // Test API endpoints
+                const healthCheck = await fetch('http://localhost:8000/health');
+                if (healthCheck.ok) {
+                    console.log('✅ Backend health check passed');
+                } else {
+                    console.log('❌ Backend health check failed');
+                }
+                
+            } catch (error) {
+                console.error('❌ Test failed:', error);
+            }
+        }
+        
+        // Run test when page loads
+        window.addEventListener('load', testHebrewFlow);
+        
+        // Display test status on page
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.innerHTML = `
+                <div style="font-family: Arial; padding: 20px; direction: rtl;">
+                    <h1>SweatBot Hebrew Flow Test</h1>
+                    <div id="status">טוען...</div>
+                    <div id="conversation" style="border: 1px solid #ccc; padding: 10px; margin: 10px 0; min-height: 300px;">
+                        <div><strong>User:</strong> היי</div>
+                        <div id="response1" style="color: #007bff;"><strong>Bot:</strong> [ממתין לתגובה...]</div>
+                        <div><strong>User:</strong> אני רוצה להזין אימון</div>
+                        <div id="response2" style="color: #007bff;"><strong>Bot:</strong> [ממתין לתגובה...]</div>
+                        <div><strong>User:</strong> עשיתי היום 20 סקווטים ורצתי 200 מטרים</div>
+                        <div id="response3" style="color: #007bff;"><strong>Bot:</strong> [ממתין לתגובה...]</div>
+                    </div>
+                    <p>בדיקת קיבוצי ה-console ברגע זה...</p>
+                </div>
+            `;
+        });
+    </script>
+</head>
+<body>
+    <p>Loading SweatBot Hebrew Test...</p>
+</body>
+</html>

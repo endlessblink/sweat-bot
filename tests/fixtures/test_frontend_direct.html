@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SweatBot Frontend Direct Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            border: 1px solid #333;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+        }
+        .pass { background: #1a5c1a; }
+        .fail { background: #5c1a1a; }
+        .pending { background: #5c5c1a; }
+        button {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+            border-radius: 3px;
+        }
+        button:hover { background: #555; }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #333;
+            background: #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>SweatBot Frontend Test Results</h1>
+    
+    <div class="test-section">
+        <h2>Test Results Summary</h2>
+        <div id="summary"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Live Frontend Testing</h2>
+        <p>The frontend is accessible at: <a href="http://localhost:8005" target="_blank">http://localhost:8005</a></p>
+        
+        <button onclick="loadFrontend()">Load Frontend in Frame</button>
+        <button onclick="testGreeting()">Test Greeting</button>
+        
+        <iframe id="frontend-frame" src="" style="display:none;"></iframe>
+        
+        <div id="test-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Key Findings</h2>
+        <div id="findings">
+            <div class="test-result fail">
+                <strong>❌ Backend Configuration Issue:</strong> 
+                Backend is trying to forward AI requests to port 8005 (frontend) instead of handling them properly.
+            </div>
+            
+            <div class="test-result pass">
+                <strong>✅ Frontend Serving:</strong> 
+                Frontend is properly running on port 8005 with Vite + React.
+            </div>
+            
+            <div class="test-result pass">
+                <strong>✅ No Hardcoded UI Components:</strong> 
+                Tests show no automatic UI components are generated for simple greetings.
+            </div>
+            
+            <div class="test-result pass">
+                <strong>✅ Response Variation:</strong> 
+                Multiple identical greetings produced different responses (not hardcoded).
+            </div>
+            
+            <div class="test-result pass">
+                <strong>✅ Hebrew Language Support:</strong> 
+                Hebrew text detected in responses.
+            </div>
+            
+            <div class="test-result pending">
+                <strong>⚠️ Tool System:</strong> 
+                Tool system appears to work for some commands but AI agent service connection fails.
+            </div>
+            
+            <div class="test-result fail">
+                <strong>❌ Conversation Memory:</strong> 
+                Memory not working due to backend AI service connection issues.
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Recommendations</h2>
+        <div class="test-result pending">
+            <strong>🔧 Fix Required:</strong> 
+            <ol>
+                <li>Backend should NOT forward to external AI service on port 8005</li>
+                <li>Frontend Volt Agent should handle AI directly via browser API calls</li>
+                <li>Backend should only handle data operations (exercises, stats, memory)</li>
+                <li>Update the backend endpoint to work with the hybrid architecture</li>
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        // Display test summary from our Python test results
+        const testResults = {
+            passed: 8,
+            failed: 2, 
+            partial: 4,
+            total: 14,
+            successRate: 57.1
+        };
+        
+        document.getElementById('summary').innerHTML = `
+            <div class="test-result pass">✅ PASSED: ${testResults.passed}</div>
+            <div class="test-result fail">❌ FAILED: ${testResults.failed}</div>
+            <div class="test-result pending">⚠️ PARTIAL: ${testResults.partial}</div>
+            <div class="test-result">📝 TOTAL: ${testResults.total}</div>
+            <div class="test-result ${testResults.successRate >= 70 ? 'pass' : 'fail'}">
+                🎯 SUCCESS RATE: ${testResults.successRate}%
+            </div>
+        `;
+        
+        function loadFrontend() {
+            const frame = document.getElementById('frontend-frame');
+            frame.src = 'http://localhost:8005';
+            frame.style.display = 'block';
+        }
+        
+        function testGreeting() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="test-result pending">🔄 Testing greeting via frontend...</div>';
+            
+            // Test the frontend API directly
+            fetch('http://localhost:8000/chat/personal-sweatbot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: 'Hi',
+                    user_id: 'test-user'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.response) {
+                    resultsDiv.innerHTML = `
+                        <div class="test-result pass">
+                            <strong>✅ Response Received:</strong><br>
+                            ${data.response}
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="test-result fail">
+                            <strong>❌ No Response:</strong> ${JSON.stringify(data)}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                resultsDiv.innerHTML = `
+                    <div class="test-result fail">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>

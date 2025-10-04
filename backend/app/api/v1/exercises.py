@@ -87,18 +87,21 @@ async def log_exercise(
     Log a new exercise performance
     Supports Hebrew voice commands
     """
-    # Parse Hebrew if provided
-    if exercise_input.voice_command:
-        parsed = await hebrew_parser.parse_exercise_command(exercise_input.voice_command)
-        if parsed:
-            exercise_input = ExerciseInput(**{**exercise_input.dict(), **parsed})
+    # DEPRECATED: Hebrew parsing now handled by AI agent in frontend
+    # Keeping for backward compatibility but not using
+    # if exercise_input.voice_command:
+    #     parsed = await hebrew_parser.parse_exercise_command(exercise_input.voice_command)
+    #     if parsed:
+    #         exercise_input = ExerciseInput(**{**exercise_input.dict(), **parsed})
     
     # Get or create current workout session
     workout = await get_or_create_workout(db, current_user.id)
     
-    # Translate exercise name if needed
+    # DEPRECATED: Translation now handled by AI agent
+    # Default to English name if Hebrew not provided
     if not exercise_input.name_he:
-        exercise_input.name_he = hebrew_parser.translate_exercise_name(exercise_input.name)
+        exercise_input.name_he = exercise_input.name  # Just use English name as fallback
+        # exercise_input.name_he = hebrew_parser.translate_exercise_name(exercise_input.name)
     
     # Create exercise record
     exercise = Exercise(
@@ -387,3 +390,102 @@ async def create_personal_record(db: AsyncSession, user_id: str, exercise: Exerc
     
     db.add(pr)
     await db.commit()
+
+# Data Management Endpoints
+@router.post("/reset-points")
+async def reset_points(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Reset user's points to 0"""
+    # Update all exercises to have 0 points
+    query = select(Exercise).join(Workout).where(Workout.user_id == current_user.id)
+    result = await db.execute(query)
+    exercises = result.scalars().all()
+    
+    for exercise in exercises:
+        exercise.points_earned = 0
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": "Points reset successfully",
+        "exercises_affected": len(exercises)
+    }
+
+@router.delete("/clear")
+async def clear_exercises(
+    period: Optional[str] = "all",
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Clear exercise history for specified period"""
+    from datetime import datetime, timedelta
+    
+    # Build query based on period
+    query = select(Exercise).join(Workout).where(Workout.user_id == current_user.id)
+    
+    if period == "today":
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.where(Exercise.created_at >= today_start)
+    elif period == "week":
+        week_ago = datetime.now() - timedelta(days=7)
+        query = query.where(Exercise.created_at >= week_ago)
+    elif period == "month":
+        month_ago = datetime.now() - timedelta(days=30)
+        query = query.where(Exercise.created_at >= month_ago)
+    
+    result = await db.execute(query)
+    exercises = result.scalars().all()
+    
+    # Delete exercises
+    for exercise in exercises:
+        await db.delete(exercise)
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Cleared {len(exercises)} exercises",
+        "period": period
+    }
+
+@router.delete("/clear-all")
+async def clear_all_data(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Clear ALL user data including exercises, workouts, and personal records"""
+    # Clear exercises
+    exercises_query = select(Exercise).join(Workout).where(Workout.user_id == current_user.id)
+    exercises_result = await db.execute(exercises_query)
+    exercises = exercises_result.scalars().all()
+    for exercise in exercises:
+        await db.delete(exercise)
+    
+    # Clear workouts
+    workouts_query = select(Workout).where(Workout.user_id == current_user.id)
+    workouts_result = await db.execute(workouts_query)
+    workouts = workouts_result.scalars().all()
+    for workout in workouts:
+        await db.delete(workout)
+    
+    # Clear personal records
+    pr_query = select(PersonalRecord).where(PersonalRecord.user_id == current_user.id)
+    pr_result = await db.execute(pr_query)
+    personal_records = pr_result.scalars().all()
+    for pr in personal_records:
+        await db.delete(pr)
+    
+    await db.commit()
+    
+    return {
+        "success": True,
+        "message": "All data cleared successfully",
+        "deleted": {
+            "exercises": len(exercises),
+            "workouts": len(workouts),
+            "personal_records": len(personal_records)
+        }
+    }

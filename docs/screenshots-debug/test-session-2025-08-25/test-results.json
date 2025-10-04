@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-08-25T15:06:58.741Z",
+  "tests": [
+    {
+      "name": "Page loads with chat input",
+      "passed": true,
+      "details": "Chat input found"
+    },
+    {
+      "name": "Greeting responses are varied (not hardcoded)",
+      "passed": true,
+      "details": "Got 4 unique responses out of 5 attempts",
+      "responses": [
+        "שלום! איך אני יכול לעזור לך היום? 💪",
+        "היי שוב! איך אני יכול לעזור לך היום? 🏋️‍♂️",
+        "היי שוב! איך אני יכול לעזור לך היום? 🏋️‍♂️",
+        "היי! איך אני יכול לעזור לך היום? 💪",
+        "היי! מה שלומך? איך אני יכול לעזור לך היום? 💪"
+      ]
+    },
+    {
+      "name": "Hebrew exercise logging works",
+      "passed": true,
+      "details": "Found exercise response: SweatBotהמאמן הכושר הדיגיטלי שלךשלוםשלום! איך אני יכול לעזור לך היום? 💪שלוםהיי שוב! איך אני יכול לעזור לך היום? 🏋️‍♂️שלוםהיי! איך אני יכול לעזור לך היום? 💪שלוםהיי! מה שלומך? איך אני יכול לעזור לך היום? 💪עשיתי 20 סקוואטיםרשמתי לך: סקוואטים - 20 חזרות! כל הכבוד! 💪→"
+    },
+    {
+      "name": "Non-fitness questions politely declined",
+      "passed": false,
+      "details": "Did not redirect to fitness topics"
+    },
+    {
+      "name": "Statistics request works in Hebrew",
+      "passed": true,
+      "details": "Found stats response: SweatBotהמאמן הכושר הדיגיטלי שלךשלוםשלום! איך אני יכול לעזור לך היום? 💪שלוםהיי שוב! איך אני יכול לעזור לך היום? 🏋️‍♂️שלוםהיי! איך אני יכול לעזור לך היום? 💪שלוםהיי! מה שלומך? איך אני יכול לעזור לך היום? 💪עשיתי 20 סקוואטיםרשמתי לך: סקוואטים - 20 חזרות! כל הכבוד! 💪מה השעה?אין בעיה! מה רצית לדעת או איך אני יכול לעזור לך היום? 💪כמה נקודות יש לי?הסטטיסטיקות שלך:📊 150 נקודות השבוע💪 12 אימונים החודש🔥 רצף של 3 ימים→"
+    }
+  ],
+  "passed": 4,
+  "failed": 1
+}

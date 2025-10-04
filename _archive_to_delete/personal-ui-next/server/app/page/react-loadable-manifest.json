@@ -1,9 +1,0 @@
-{
-  "[project]/node_modules/deep-chat-react/dist/deepChat.js [app-client] (ecmascript, next/dynamic entry)": {
-    "id": "[project]/node_modules/deep-chat-react/dist/deepChat.js [app-client] (ecmascript, next/dynamic entry)",
-    "files": [
-      "static/chunks/node_modules_d4b5204a._.js",
-      "static/chunks/node_modules_deep-chat-react_dist_deepChat_298da30f.js"
-    ]
-  }
-}

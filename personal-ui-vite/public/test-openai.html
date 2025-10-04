@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAI Integration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #output {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 OpenAI Integration Test</h1>
+        
+        <div class="test-section">
+            <h2>Configuration Status</h2>
+            <div id="config-status"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Test Actions</h2>
+            <button onclick="testGreeting()">Test Greeting (היי)</button>
+            <button onclick="testExerciseRequest()">Test Exercise Request</button>
+            <button onclick="testExerciseLog()">Test Exercise Logging</button>
+            <button onclick="clearOutput()">Clear Output</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>Output</h2>
+            <div id="output"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the agent module
+        import { getSweatBotAgent } from '/src/agent/index.ts';
+        
+        window.agent = null;
+        
+        // Initialize and check configuration
+        async function initializeAgent() {
+            const output = document.getElementById('output');
+            const configStatus = document.getElementById('config-status');
+            
+            try {
+                // Check environment variables
+                const hasOpenAIKey = import.meta.env.VITE_OPENAI_API_KEY && 
+                                   import.meta.env.VITE_OPENAI_API_KEY !== 'sk-your-openai-api-key-here';
+                const hasGroqKey = import.meta.env.VITE_GROQ_API_KEY;
+                const hasGeminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+                
+                // Display configuration status
+                configStatus.innerHTML = `
+                    <div class="${hasOpenAIKey ? 'status success' : 'status warning'}">
+                        OpenAI API Key: ${hasOpenAIKey ? '✅ Configured' : '⚠️ Not configured (using placeholder)'}
+                    </div>
+                    <div class="${hasGroqKey ? 'status success' : 'status error'}">
+                        Groq API Key: ${hasGroqKey ? '✅ Configured' : '❌ Not configured'}
+                    </div>
+                    <div class="${hasGeminiKey ? 'status success' : 'status error'}">
+                        Gemini API Key: ${hasGeminiKey ? '✅ Configured' : '❌ Not configured'}
+                    </div>
+                `;
+                
+                // Initialize agent
+                output.textContent += 'Initializing SweatBot Agent...\n';
+                window.agent = getSweatBotAgent();
+                
+                // Check agent status
+                const status = window.agent.getStatus();
+                output.textContent += `Agent initialized successfully!\n`;
+                output.textContent += `Active providers: ${status.providers.join(', ')}\n`;
+                output.textContent += `Available tools: ${status.tools}\n`;
+                output.textContent += `Memory enabled: ${status.memoryEnabled}\n\n`;
+                
+                // Check console for provider messages
+                if (!hasOpenAIKey) {
+                    output.textContent += '⚠️ Note: OpenAI API key not configured. Will fall back to Groq.\n\n';
+                }
+                
+            } catch (error) {
+                configStatus.innerHTML = `<div class="status error">Failed to initialize: ${error.message}</div>`;
+                output.textContent += `Error: ${error.message}\n`;
+            }
+        }
+        
+        // Test functions
+        window.testGreeting = async function() {
+            const output = document.getElementById('output');
+            if (!window.agent) {
+                output.textContent += 'Error: Agent not initialized\n';
+                return;
+            }
+            
+            output.textContent += '>>> Testing greeting "היי"...\n';
+            try {
+                const response = await window.agent.chat('היי');
+                output.textContent += `Response: ${response}\n`;
+                
+                // Check for issues
+                if (response.includes('{"content')) {
+                    output.textContent += '❌ ERROR: Response contains JSON!\n';
+                } else if (response.includes('function=')) {
+                    output.textContent += '❌ ERROR: Response contains function definition!\n';
+                } else {
+                    output.textContent += '✅ Clean response received\n';
+                }
+            } catch (error) {
+                output.textContent += `❌ Error: ${error.message}\n`;
+            }
+            output.textContent += '\n';
+        };
+        
+        window.testExerciseRequest = async function() {
+            const output = document.getElementById('output');
+            if (!window.agent) {
+                output.textContent += 'Error: Agent not initialized\n';
+                return;
+            }
+            
+            output.textContent += '>>> Testing "אני רוצה לעדכן אימון"...\n';
+            try {
+                const response = await window.agent.chat('אני רוצה לעדכן אימון');
+                output.textContent += `Response: ${response}\n`;
+                
+                // Check if bot asks for details
+                if (response.includes('איזה תרגיל') || response.includes('מה עשית')) {
+                    output.textContent += '✅ Bot correctly asks for exercise details\n';
+                } else if (response.includes('בעיה טכנית')) {
+                    output.textContent += '❌ Technical error - tool calling failed\n';
+                } else {
+                    output.textContent += '⚠️ Unexpected response\n';
+                }
+            } catch (error) {
+                output.textContent += `❌ Error: ${error.message}\n`;
+            }
+            output.textContent += '\n';
+        };
+        
+        window.testExerciseLog = async function() {
+            const output = document.getElementById('output');
+            if (!window.agent) {
+                output.textContent += 'Error: Agent not initialized\n';
+                return;
+            }
+            
+            output.textContent += '>>> Testing "עשיתי 30 סקוואטים"...\n';
+            try {
+                const response = await window.agent.chat('עשיתי 30 סקוואטים');
+                output.textContent += `Response: ${response}\n`;
+                
+                // Check if exercise was logged
+                if (response.includes('רשמתי') && response.includes('30')) {
+                    output.textContent += '✅ Exercise logged successfully!\n';
+                    output.textContent += 'OpenAI integration is working correctly!\n';
+                } else if (response.includes('בעיה טכנית')) {
+                    output.textContent += '❌ Tool calling failed\n';
+                    output.textContent += 'This usually means the API key is invalid or missing\n';
+                } else {
+                    output.textContent += '⚠️ Unexpected response\n';
+                }
+            } catch (error) {
+                output.textContent += `❌ Error: ${error.message}\n`;
+                if (error.message.includes('API key')) {
+                    output.textContent += 'Please add a valid OpenAI API key to .env file\n';
+                }
+            }
+            output.textContent += '\n';
+        };
+        
+        window.clearOutput = function() {
+            document.getElementById('output').textContent = '';
+        };
+        
+        // Initialize on load
+        initializeAgent();
+    </script>
+</body>
+</html>

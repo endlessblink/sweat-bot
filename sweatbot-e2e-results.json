@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-08-25T20:00:48.644Z",
+  "tests": [
+    {
+      "number": 1,
+      "name": "First Hi greeting sent",
+      "passed": true,
+      "details": "Response: שגיאה זמנית בחיבור. קיבלתי: \"Hi\" - נסה שוב בעוד רגע 🔄..."
+    },
+    {
+      "number": 2,
+      "name": "Test execution",
+      "passed": false,
+      "details": "Error: page.waitForTimeout: Target page, context or browser has been closed"
+    }
+  ],
+  "screenshots": [
+    "screenshot-0-initial-load.png",
+    "screenshot-0-greeting-hi-first.png"
+  ]
+}

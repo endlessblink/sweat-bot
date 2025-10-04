@@ -18,6 +18,7 @@ from app.services.hebrew_model_manager import HebrewModelManager
 from app.services.gamification_service import GamificationService
 from app.services.exercise_integration_service import exercise_integration_service
 from app.services.user_context_manager import user_context_manager
+from app.services.ui_response_processor import ui_processor
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -537,11 +538,20 @@ class PersonalSweatBotRequest(BaseModel):
     user_id: Optional[str] = Field("personal", description="User ID") 
     session_id: Optional[str] = Field(None, description="Session ID")
 
+class UIComponent(BaseModel):
+    """UI Component data structure"""
+    type: str = Field(..., description="Component type: stats-chart, quick-actions, exercise-card, workout-card")
+    data: Dict[str, Any] = Field(..., description="Component data")
+    actions: Optional[List[Dict[str, Any]]] = Field(None, description="Available actions for this component")
+
 class PersonalSweatBotResponse(BaseModel):
     """Response model for personal SweatBot integration"""
     response: str = Field(..., description="AI response")
     session_id: str = Field(..., description="Session ID")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+    ui_components: Optional[List[UIComponent]] = Field(None, description="UI components to render")
+    tool_called: Optional[str] = Field(None, description="Name of tool that was called")
+    tool_result: Optional[Dict[str, Any]] = Field(None, description="Structured data from tool execution")
 
 @router.post("/personal-sweatbot", response_model=PersonalSweatBotResponse)
 async def personal_sweatbot_chat(
@@ -557,40 +567,88 @@ async def personal_sweatbot_chat(
         
         logger.info(f"Personal SweatBot request: {request.message}")
         
-        # Try to import and use PersonalSweatBotEnhanced
+        # Use actual AI agent instead of pattern matching
+        ui_components = []
+        tool_called = None
+        tool_result = None
+        
         try:
-            from src.agents.personal_sweatbot_enhanced import PersonalSweatBotEnhanced
+            logger.info(f"🔄 Forwarding to AI Agent Service: {request.message}")
             
-            # Initialize the enhanced SweatBot agent
-            sweatbot = PersonalSweatBotEnhanced()
+            # Forward request to AI Agent Service on port 8005
+            import httpx
             
-            # Get response from the agent
-            response_text = sweatbot.chat(request.message)
+            ai_agent_url = "http://localhost:8005/chat"
+            payload = {
+                "message": request.message,
+                "user_id": request.user_id
+            }
             
-            logger.info(f"✅ PersonalSweatBot response: {response_text[:100]}...")
+            async with httpx.AsyncClient() as client:
+                ai_response = await client.post(
+                    ai_agent_url,
+                    json=payload,
+                    timeout=30.0
+                )
+                
+                if ai_response.status_code == 200:
+                    ai_data = ai_response.json()
+                    response_text = ai_data.get("response", "לא הצלחתי לקבל תגובה")
+                    logger.info(f"✅ AI Agent service response: {response_text[:100]}...")
+                else:
+                    raise Exception(f"AI Agent service error: {ai_response.status_code}")
             
-        except ImportError as e:
-            logger.warning(f"Could not import PersonalSweatBotEnhanced: {e}")
-            # Fallback to simple Hebrew responses
-            message = request.message.lower()
+            # Process response for UI components
+            response_text, ui_components, tool_called, tool_result = ui_processor.process_agent_response(
+                agent_response=response_text,
+                user_message=request.message,
+                db=db
+            )
             
-            if 'נקודות' in message or 'points' in message:
-                response_text = 'הנה הנקודות שלך השבוע! 📊\n\n🏃‍♂️ ריצה: 150 נקודות\n🏋️ כושר כללי: 230 נקודות\n📈 סה"כ: 380 נקודות'
-            elif 'סקוואט' in message or 'squat' in message:
-                response_text = 'מעולה! רושם לך סקוואטים! 🏋️‍♀️\n\nכמה חזרות עשית? האם השתמשת במשקל נוסף?'
-            elif 'ריצה' in message or 'run' in message:
-                response_text = 'איזה כיף! ריצה זה נהדר! 🏃‍♀️\n\nכמה זמן רצת? איך הרגשת?'
-            else:
-                response_text = f'שלום! קיבלתי: "{request.message}"\n\n🏋️ אני SweatBot האישי שלך - נסה לכתוב "הראה נקודות" או "עשיתי סקוואטים"'
+            logger.info(f"🎨 Generated {len(ui_components)} UI components")
+            
+        except Exception as e:
+            logger.error(f"Could not connect to AI agent service: {e}")
+            # Fallback to simple response
+            response_text = f'שלום! קיבלתי: "{request.message}"\n\n🤖 יש בעיה קטנה במערכת AI. אנסה שוב בעוד רגע!\n\nשגיאה: {str(e)}'
+            
+            # Add quick actions for fallback
+            _, fallback_components, _, _ = ui_processor.process_agent_response(
+                agent_response=response_text,
+                user_message=request.message,
+                db=db
+            )
+            ui_components = fallback_components
         
         except Exception as e:
-            logger.error(f"Error with PersonalSweatBotEnhanced: {e}")
-            response_text = f'שלום! קיבלתי: "{request.message}"\n\n🏋️ אני SweatBot - המערכת עדיין בפיתוח, אבל אני כאן בשבילך!'
+            logger.error(f"Error with AI agent: {e}")
+            # Provide informative error message
+            response_text = f'שלום! קיבלתי: "{request.message}"\n\n🤖 יש בעיה קטנה במערכת AI. אנסה שוב בעוד רגע!\n\nשגיאה: {str(e)[:100]}'
+            
+            # Add quick actions for error case
+            _, error_components, _, _ = ui_processor.process_agent_response(
+                agent_response=response_text,
+                user_message=request.message,
+                db=db
+            )
+            ui_components = error_components
+        
+        # Convert UI components to the response format
+        ui_component_objects = []
+        for component in ui_components:
+            ui_component_objects.append(UIComponent(
+                type=component['type'],
+                data=component['data'],
+                actions=component.get('actions')
+            ))
         
         return PersonalSweatBotResponse(
             response=response_text,
             session_id=session_id,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
+            ui_components=ui_component_objects,
+            tool_called=tool_called,
+            tool_result=tool_result
         )
         
     except Exception as e:

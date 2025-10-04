@@ -1195,5 +1195,171 @@
       "recommendations": []
     },
     "reason": "timeout"
+  },
+  {
+    "id": "session-1755711654689-4kuea5o5p",
+    "startTime": 1755711654689,
+    "metadata": {
+      "autoStarted": true
+    },
+    "activities": [
+      {
+        "type": "tool_use",
+        "timestamp": 1755711654689,
+        "data": {
+          "tool": "search_memories",
+          "args": {
+            "query": "SweatBot personal UI Vite migration runtime adapter",
+            "project": "sweatbot"
+          }
+        }
+      },
+      {
+        "type": "search",
+        "timestamp": 1755711654693,
+        "data": {
+          "query": "SweatBot personal UI Vite migration runtime adapter",
+          "project": "sweatbot"
+        }
+      },
+      {
+        "type": "tool_use",
+        "timestamp": 1755711713300,
+        "data": {
+          "tool": "list_tasks",
+          "args": {
+            "project": "sweatbot",
+            "limit": 10
+          }
+        }
+      }
+    ],
+    "errors": [],
+    "solutions": [],
+    "discoveries": [],
+    "files": {},
+    "searches": {},
+    "tools": {},
+    "keyMoments": [],
+    "context": {
+      "project": "default",
+      "goal": null,
+      "tags": []
+    },
+    "endTime": 1755713746573,
+    "duration": 2091878,
+    "summary": {
+      "metrics": {
+        "duration": 2091878,
+        "totalActivities": 3,
+        "searches": 1,
+        "uniqueSearches": 1,
+        "toolsUsed": 2,
+        "filesAccessed": 0,
+        "errorsEncountered": 0,
+        "errorsResolved": 0,
+        "solutionsFound": 0,
+        "discoveries": 0,
+        "keyMoments": 0
+      },
+      "sessionType": [
+        "general"
+      ],
+      "narrative": "34 minutes session with 3 activities.",
+      "isSignificant": false,
+      "highlights": [
+        {
+          "type": "top_searches",
+          "data": [
+            {
+              "query": "sweatbot personal ui vite migration runtime adapter",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "type": "tools",
+          "data": [
+            {
+              "tool": "search_memories",
+              "count": 1
+            },
+            {
+              "tool": "list_tasks",
+              "count": 1
+            }
+          ]
+        }
+      ],
+      "recommendations": []
+    },
+    "reason": "timeout"
+  },
+  {
+    "id": "session-1755795087323-ammnzx39r",
+    "startTime": 1755795087323,
+    "metadata": {
+      "autoStarted": true
+    },
+    "activities": [
+      {
+        "type": "tool_use",
+        "timestamp": 1755795087323,
+        "data": {
+          "tool": "update_task",
+          "args": {
+            "task_id": "fix-database-port-config",
+            "status": "done"
+          }
+        }
+      }
+    ],
+    "errors": [],
+    "solutions": [],
+    "discoveries": [],
+    "files": {},
+    "searches": {},
+    "tools": {},
+    "keyMoments": [],
+    "context": {
+      "project": "default",
+      "goal": null,
+      "tags": []
+    },
+    "endTime": 1755797134906,
+    "duration": 2047577,
+    "summary": {
+      "metrics": {
+        "duration": 2047577,
+        "totalActivities": 1,
+        "searches": 0,
+        "uniqueSearches": 0,
+        "toolsUsed": 1,
+        "filesAccessed": 0,
+        "errorsEncountered": 0,
+        "errorsResolved": 0,
+        "solutionsFound": 0,
+        "discoveries": 0,
+        "keyMoments": 0
+      },
+      "sessionType": [
+        "general"
+      ],
+      "narrative": "34 minutes session with 1 activities.",
+      "isSignificant": false,
+      "highlights": [
+        {
+          "type": "tools",
+          "data": [
+            {
+              "tool": "update_task",
+              "count": 1
+            }
+          ]
+        }
+      ],
+      "recommendations": []
+    },
+    "reason": "timeout"
   }
 ]

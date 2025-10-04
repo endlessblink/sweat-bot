@@ -2,181 +2,310 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 CRITICAL: SCREENSHOT DIRECTORY REQUIREMENT 🚨
+
+**MANDATORY SCREENSHOT LOCATION**: 
+### ALL screenshots MUST be saved to: `/mnt/d/MY PROJECTS/AI/LLM/AI Code Gen/my-builds/Automation-Bots/sweatbot/docs/screenshots-debug/`
+
+**NEVER save screenshots anywhere else!**
+
+**Required Structure**:
+```
+docs/screenshots-debug/
+├── test-session-YYYY-MM-DD/     # Create subfolder for each test session
+├── e2e-tests/                   # E2E testing screenshots
+├── ui-components/                # UI component testing
+├── error-states/                 # Error and failure screenshots
+└── performance/                  # Performance testing screenshots
+```
+
+**Why This Matters**:
+- Centralized debugging artifacts
+- Organized test history
+- Easy to find and review past issues
+- Prevents cluttering other directories
+- Maintains clean project structure
+
+## 🚨 CRITICAL: NO DEMO DATA DURING DEVELOPMENT 🚨
+
+**ABSOLUTE RULE: NEVER add demo, static, or placeholder data to any database during development**
+
+**Why this matters**:
+- Demo data makes testing impossible (can't verify real functionality)
+- Static responses hide bugs (looks working but isn't)
+- Placeholder data ruins the debug cycle
+- Pre-populated stats prevent proper E2E testing
+- Fake data gives false confidence that features work
+
+**FORBIDDEN During Development**:
+- ❌ NO pre-populating databases with sample exercises
+- ❌ NO hardcoded statistics like "150 points this week"
+- ❌ NO fake workout history or achievements
+- ❌ NO placeholder conversation history
+- ❌ NO demo users with existing data
+
+**Instead, ALWAYS**:
+- ✅ Start with CLEAN databases (use reset script if needed)
+- ✅ Test with REAL user input through the UI
+- ✅ Verify ACTUAL data flow from frontend to backend
+- ✅ Use the data reset endpoints when needed: `/api/v1/exercises/clear-all`
+- ✅ Run `backend/scripts/reset_all_data.py` to wipe everything
+
+**Quick Data Reset Commands**:
+```bash
+# Reset ALL data across all databases
+python backend/scripts/reset_all_data.py
+
+# Or manually:
+docker exec sweatbot_postgres psql -U fitness_user -d hebrew_fitness -c "TRUNCATE TABLE exercises, workouts, personal_records, users CASCADE;"
+docker exec sweatbot_mongodb mongosh --eval "use sweatbot_conversations; db.dropDatabase();"
+docker exec sweatbot_redis redis-cli -a sweatbot_redis_pass FLUSHALL
+```
+
+## 🚨 CRITICAL TESTING REQUIREMENT 🚨
+
+**NEVER claim the project is functional, working, operational, or ready for production without ACTUAL E2E TESTING using Playwright MCP or similar automated testing tools on the real frontend.**
+
+⚠️ **PARAMOUNT RULE**: 
+- DO NOT say "the system is working" based on:
+  - Code inspection alone
+  - Partial testing
+  - Console logs
+  - Screenshots without verification
+  - Assumptions or inference
+  - Unit tests or isolated component tests
+  
+✅ **ONLY claim functionality after**:
+- Running actual E2E tests with Playwright MCP
+- Testing real user interactions in the browser
+- Verifying complete user flows end-to-end
+- Confirming all components integrate correctly
+- Testing multiple times to ensure responses are NOT hardcoded
+
+**Testing Criteria for Natural Conversation**:
+- ✅ Greeting ("Hi", "שלום") must return DIFFERENT responses each time (proves it's not hardcoded)
+- ✅ NO UI components (buttons, quick actions) should appear unless explicitly requested
+- ✅ Non-fitness questions ("מה השעה?", "What time is it?") should be politely declined
+- ✅ Fitness requests should trigger appropriate tools ONLY when explicitly asked
+- ✅ Conversation memory should persist across multiple messages
+
+**ABSOLUTELY FORBIDDEN**:
+- ❌ NO hardcoded responses ever (each "Hi" should get a unique response)
+- ❌ NO automatic UI components for greetings
+- ❌ NO templated messages like "אני SweatBot, הבוט האישי שלך..."
+- ❌ NO quick action buttons unless user specifically asks for them
+- ❌ NO claiming functionality works without Playwright testing
+
+**Why this matters**: False claims of functionality lead to wasted time, broken deployments, and loss of trust. Always verify through automated E2E testing before making any claims about the system's operational status.
+
+## 🚨 CRITICAL: Environment Configuration
+
+**NEVER modify Windows Claude Desktop configuration from WSL2**
+
+### Environment Setup
+- **Windows**: Claude Desktop (DO NOT TOUCH)
+  - Location: Windows AppData Claude Desktop config
+  - MCP Servers: `desktop-commander`, `rough-cut-mcp`, etc.
+  - Purpose: Windows-based development and automation
+  - **WARNING**: Do not modify this from WSL2 - completely separate system
+
+- **WSL2**: Claude Code CLI (WORKING ENVIRONMENT)
+  - Location: `/mnt/d/MY PROJECTS/AI/LLM/AI Code Gen/my-builds/Automation-Bots/sweatbot/`
+  - Purpose: SweatBot development and testing
+  - MCP System: Built-in Claude Code MCP servers (different from Desktop)
+  - Configuration: Managed by Claude Code, not external config files
+
+### Why This Matters
+- Claude Desktop (Windows) and Claude Code (WSL2) are completely different systems
+- They have different MCP server configurations and capabilities
+- Modifying Windows Claude Desktop config from WSL2 is incorrect and ineffective
+- Focus development work in WSL2 Claude Code environment only
+
+## 🚨 CRITICAL: Natural Language Processing Principle
+
+**NEVER use hardcoded pattern matching to "help" the AI understand language**
+
+### Why This Matters
+Modern LLMs (GPT-4o, Gemini, Claude) understand languages and context naturally. Adding pattern matching:
+- Creates rigid, templated responses
+- Prevents natural conversation  
+- Interferes with tool selection
+- Makes the system less intelligent
+
+### Correct Approach
+1. **Trust the AI**: It understands Hebrew, English, and context perfectly
+2. **Clear prompts**: Give explicit instructions in the system prompt
+3. **Simple tools**: Describe when to use, not complex conditions
+4. **Remove patterns**: Delete keyword matching, use semantic understanding
+
+### Example of What We Fixed
+❌ **Wrong**: Pattern matching that returns "מעולה! איזה תרגיל עשית?" when user says "עשיתי 4 טיפוסי חבל"
+✅ **Right**: AI understands "עשיתי 4 טיפוסי חבל" means log 4 rope climbs immediately
+
+Remember: **The AI is smarter than your patterns. Let it work naturally.**
+
 ## Project Overview
 
-SweatBot is a comprehensive Hebrew fitness tracking AI system featuring voice recognition, exercise tracking, real-time coaching, and gamification. The project has evolved through multiple architectural iterations:
+SweatBot is a comprehensive Hebrew fitness tracking AI system featuring voice recognition, exercise tracking, real-time coaching, and gamification.
 
-- **Current Implementation**: Modern hybrid architecture with FastAPI backend, Next.js frontend, and Mastra AI framework
-- **Legacy Systems**: Original Python desktop app (`hebrew-crossfit-ai/`) and intermediate hybrid (`hebrew-fitness-hybrid/`)
-- **Development Framework**: BMAD Method (Business-Minded Agile Development) with Squad Engineering methodology
+- **Current Implementation**: Hybrid architecture with FastAPI backend (Python) for data operations and Volt Agent (TypeScript) for AI orchestration
+- **AI Integration**: Direct browser calls to Gemini/Groq APIs with fallback chain
+- **Database**: PostgreSQL (exercises & stats), MongoDB (conversation history), Redis (session cache)
 
-## IMPORTANT PORT CONFIGURATION
-🎯 **STANDARDIZED PORT ALLOCATION (8000-8005 ONLY)**:
+## 🎯 CRITICAL PORT CONFIGURATION
+⚠️ **MANDATORY PORT RANGE: 8000-8020 ONLY**
+
+**STANDARDIZED PORT ALLOCATION**:
 - **Port 8000**: Main SweatBot Backend (FastAPI with runtime fallback)
-- **Port 8001**: Reserved for auxiliary services
-- **Port 8002**: Personal SweatBot UI (Vite frontend)
-- **Port 8003**: Available for additional services
-- **Port 8004**: Available for additional services  
-- **Port 8005**: Available for additional services
+- **Port 8001**: PostgreSQL Database  
+- **Port 8002**: MongoDB (Conversation Storage)
+- **Port 8003**: Redis (Session Cache)
+- **Port 8004**: Reserved for future use
+- **Port 8005**: Frontend with Volt Agent (Vite + React + TypeScript)
+- **Port 8006**: Reserved for future local AI models (currently unused)
+- **Port 8007**: Alternative frontend port
+- **Ports 8008-8020**: Available for additional SweatBot services
 
-⚠️ **NO OTHER PORTS ALLOWED** - All SweatBot services must use ports 8000-8005 only
+🚨 **ABSOLUTE REQUIREMENT**: All SweatBot services, frontends, databases, and any related processes MUST use ports 8000-8020 ONLY. No exceptions.
+
+**CORS Configuration**: Backend automatically allows localhost:8000-8020 range.
 
 ## Architecture & Technology Stack
 
 ### Core Technology Stack
-- **Backend**: FastAPI + Python 3.11 + AsyncPG
-- **Frontend**: Vite + React + TypeScript
-- **Database**: PostgreSQL with SQLite fallback
-- **Conversation Storage**: MongoDB for persistent chat history
-- **Cache**: Redis for session management
-- **AI Framework**: Phidata + Custom tools for agent orchestration
-- **Voice Processing**: Whisper (ivrit-ai/whisper-large-v3) for Hebrew recognition
-- **Real-time**: WebSocket connections via FastAPI
-- **Deployment**: Mixed architecture (Docker for stateful services, PM2 for application layer)
+- **Backend**: FastAPI (Python 3.11) - Port 8000 - Business logic, data operations, Hebrew parsing
+- **Frontend**: Vite + React + TypeScript - Port 8005 - UI with embedded Volt Agent
+- **AI Framework**: Custom Volt Agent (TypeScript) - Frontend-based AI orchestration
+- **Cloud AI APIs**: 
+  - Google Gemini (gemini-1.5-pro) - Primary
+  - Groq (llama3-groq-70b-8192-tool-use-preview) - Fallback
+- **Databases**:
+  - PostgreSQL (Port 8001) - Exercise data & statistics
+  - MongoDB (Port 8002) - Conversation history
+  - Redis (Port 8003) - Session cache
+- **Real-time**: WebSocket via FastAPI
+- **Deployment**: Docker for databases, local dev for frontend/backend
 
-### Service Architecture (Mixed Deployment)
+### Service Architecture (Hybrid Deployment - Updated)
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║                     APPLICATION LAYER (PM2)                  ║
-╠═══════════════════════════════╤══════════════════════════════╣
-║ Frontend (Vite)               │ Backend API (FastAPI)        ║
-║ Port: 8004                    │ Port: 8000                   ║
-║ - React UI                    │ - Business Logic             ║
-║ - User Interface              │ - WebSocket Handler          ║
-║ - Real-time Updates           │ - API Routes                 ║
-╚═══════════════════════════════╧══════════════════════════════╝
-                                          │
-                    ┌─────────────────────┼─────────────────────┐
-                    ▼                     ▼                     ▼
+║           FRONTEND LAYER (Local Development)                 ║
+╠═══════════════════════════════════════════════════════════════╣
+║ Frontend with Volt Agent (Vite + React + TypeScript)         ║
+║ Port: 8005                                                   ║
+║ - Custom Volt Agent implementation                          ║
+║ - Direct API calls to Gemini/Groq                          ║
+║ - 6 TypeScript tools for fitness tracking                   ║
+║ - WebSocket connection to backend                           ║
+╚═══════════════════════════════════════════════════════════════╝
+            │                │                    │
+      Gemini API        Groq API          Local Models
+         (Direct)        (Direct)          (Port 8006)
+            │                │                    │
+            └────────────────┴────────────────────┘
+                             │
 ╔══════════════════════════════════════════════════════════════╗
-║                      DATA LAYER (DOCKER)                     ║
+║                  BACKEND LAYER (Docker/Local)                ║
+╠═══════════════════════════════════════════════════════════════╣
+║ Backend API (FastAPI)                                        ║
+║ Port: 8000                                                   ║
+║ - Exercise Storage & Statistics                              ║
+║ - User Management                                            ║
+║ - Business Logic                                             ║
+║ - Memory API for MongoDB                                     ║
+╚═══════════════════════════════════════════════════════════════╝
+                             │
+        ┌────────────────────┼────────────────────┐
+        ▼                    ▼                    ▼
+╔══════════════════════════════════════════════════════════════╗
+║                    DATA LAYER (DOCKER)                       ║
 ╠════════════════╤════════════════╤════════════════════════════╣
 ║ PostgreSQL     │ MongoDB        │ Redis                      ║
 ║ Port: 8001     │ Port: 8002     │ Port: 8003                ║
-║ - Exercise Data│ - Conversations│ - Session Cache            ║
-║ - User Stats   │ - Chat History │ - Real-time Data          ║
-║ - Achievements │ - User Context │ - Temporary Storage        ║
+║ - Exercises    │ - Conversations│ - Sessions                ║
+║ - User Stats   │ - Chat History │ - Cache                   ║
+║ - Achievements │ - Context      │ - Real-time               ║
 ╚════════════════╧════════════════╧════════════════════════════╝
-                                          │
-                                          ▼
-╔══════════════════════════════════════════════════════════════╗
-║                       AI LAYER (DOCKER)                      ║
-╠═══════════════════════════════════════════════════════════════╣
-║ AI Agent Service                                             ║
-║ Port: 8005                                                   ║
-║ ┌───────────────────────────┬────────────────────────────┐  ║
-║ │ Local Models              │ External APIs              │  ║
-║ ├───────────────────────────┼────────────────────────────┤  ║
-║ │ • Whisper (Hebrew STT)    │ • Gemini API               │  ║
-║ │ • Gemma3n (via Ollama)    │ • Groq API                 │  ║
-║ │ • LLaVA 2 (Vision)        │ • OpenAI API (future)      │  ║
-║ │ • Future Local Models     │ • Anthropic API (future)   │  ║
-║ └───────────────────────────┴────────────────────────────┘  ║
-╚═══════════════════════════════════════════════════════════════╝
+                             │
+                             ▼
 ```
 
 ### Data Flow
-1. **User Interaction**: Frontend (8004) → Backend API (8000)
-2. **Data Operations**: Backend API → PostgreSQL/MongoDB/Redis (8001-8003)
-3. **AI Processing**: Backend API → AI Agent Service (8005)
-4. **Model Selection**: AI Agent automatically selects best available model
-5. **Response Flow**: AI Agent → Backend API → Frontend
+1. **User Interaction**: Frontend (8005) with embedded Volt Agent
+2. **Cloud AI**: Frontend → Direct to Gemini/Groq APIs (no proxy)
+3. **Local Models**: Frontend → Volt Models Service (8006)
+4. **Data Operations**: Frontend → Backend API (8000) → Databases (8001-8003)
+5. **Memory**: Frontend → Backend → MongoDB for conversation persistence
+6. **Response Flow**: AI responds directly in browser, UI updates instantly
 
 ### Deployment Strategy
-- **Stateful Services (Docker)**: All databases and AI services that need persistent state
-- **Stateless Services (PM2)**: Application logic that can be easily restarted/scaled
+- **Databases (Docker)**: PostgreSQL, MongoDB, Redis for persistence
+- **Application Layer**: FastAPI backend and Vite frontend run locally
+- **AI Layer**: Direct API calls from browser (no proxy needed)
 - **Benefits**: 
-  - Database persistence and isolation
-  - Easy application updates without data loss
-  - Better resource management for AI models
-  - Clear separation of concerns
+  - Clean separation between data and logic
+  - Fast development iteration
+  - Lower memory footprint without local models
 
 ## Development Commands
 
-### 🚀 Unified Launch System (Recommended)
+### 🚀 Launch System
 ```bash
-# Interactive mode selection (best for first-time users)
-./start-sweatbot.sh
+# Start databases
+docker-compose up -d postgres mongodb redis
 
-# Quick start options
-./start-sweatbot.sh --mode=minimal     # Core AI chat only (~2min startup)
-./start-sweatbot.sh --mode=standard    # Full features (~5min startup)  
-./start-sweatbot.sh --mode=full        # Everything including ML models (~10min)
-./start-sweatbot.sh --frontend-only    # UI development (~1min)
+# Start backend (in one terminal)
+cd backend
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-# Advanced options
-./start-sweatbot.sh --debug            # Enable debug output
-./start-sweatbot.sh --force-reinstall  # Clean dependency installation
-./start-sweatbot.sh --help             # Show all options
+# Start frontend with Volt Agent (in another terminal)
+cd personal-ui-vite
+npm install  # First time only
+npm run dev  # Runs on port 8005
+
+# Environment variables needed in frontend
+export VITE_GEMINI_API_KEY="your-gemini-key"
+export VITE_GROQ_API_KEY="your-groq-key"
+export VITE_LOCAL_MODELS_URL="http://localhost:8006"
+export VITE_BACKEND_URL="http://localhost:8000"
 ```
 
-### Legacy Launch Commands (Deprecated)
-```bash
-# Old launch scripts (still functional but replaced by unified system)
-./launch-sweatbot-minimal.sh    # → Use --mode=minimal instead
-./launch-sweatbot-fixed.sh      # → Use --mode=standard instead  
-./launch-sweatbot.sh            # → Use --mode=full instead
 
-# Docker Compose (alternative deployment)
+### Alternative Launch Methods
+```bash
+# Docker Compose (all services)
 docker-compose up -d
 
-# Manual development mode
-bun run dev              # Frontend on port 4000
-bun run dev:backend      # Backend on port 8000
-
-# Legacy systems
-bun run dev:old-frontend # Old Next.js frontend
-python run_hebrew_crossfit.bat  # Desktop app
+# Individual service startup
+docker-compose up -d postgres mongodb redis
+cd backend && uvicorn app.main:app --reload
+cd personal-ui-vite && npm run dev
 ```
 
-### BMAD & Squad Engineering Commands
-```bash
-# BMAD Agents (Business-Minded Agile Development)
-npm run bmad:analyst     # Business analysis
-npm run bmad:pm          # Product management  
-npm run bmad:architect   # System architecture
-npm run bmad:developer   # Development tasks
-npm run bmad:qa          # Quality assurance
-
-# BMAD-Squad Integration
-npm run bmad-squad:team        # Team coordination
-npm run bmad-squad:feature     # Feature development
-npm run bmad-squad:dashboard   # Unified dashboard
-npm run bmad-squad:hebrew      # Hebrew optimization
-npm run bmad-squad:mapping     # Role mapping summary
-
-# Squad Engineering
-npm run squad:init       # Initialize framework
-npm run squad:status     # Check current status
-npm run squad:sync       # Sync role communications
-npm run squad:feature    # Create new feature
-```
 
 ### Testing & Quality
 ```bash
 # Backend testing
 cd backend && pytest
-python scripts/test_backend.py
 
 # Full system health check
 curl http://localhost:8000/health/detailed
 
-# Legacy system tests
-python test_hebrew_accuracy.py
-python test_weight_tracking.py
+# Frontend testing
+cd personal-ui-vite && npm test
 ```
 
 ### Database Operations
 ```bash
 # Initialize database
-python scripts/init_db.py
+cd backend && python scripts/init_db.py
 
-# Migration (legacy to current)
-python migrations/migrate_to_postgres.py
+# Connect to PostgreSQL
+psql -h localhost -p 8001 -U fitness_user -d hebrew_fitness
 
-# View data
-python view_database.py
+# Connect to MongoDB
+mongosh mongodb://sweatbot:secure_password@localhost:8002/
 ```
 
 ## Critical Implementation Details
@@ -184,75 +313,43 @@ python view_database.py
 ### Hebrew Voice Recognition Flow
 1. **Audio Capture**: Browser MediaRecorder API or sounddevice (desktop)
 2. **Transmission**: WebSocket streaming to `/ws` endpoint or direct processing
-3. **Processing**: Whisper model (`ivrit-ai/whisper-large-v3`) transcription
+3. **Processing**: Cloud-based AI transcription (future Whisper integration planned)
 4. **Parsing**: `hebrew_parser_service.py` extracts exercise commands
 5. **Storage**: PostgreSQL with Hebrew/English name mapping
 
 ### Voice Recording Support
-**Desktop Voice Interface**: `voice_sweatbot.py`
-- **Real-time Recording**: Uses sounddevice for live microphone input
-- **Silence Detection**: Automatically stops recording after 2 seconds of silence
-- **Hebrew Transcription**: Integrates with Whisper for Hebrew command recognition
-- **Conversation Persistence**: All voice interactions saved to MongoDB
-
-**System Requirements for Voice Recording**:
-```bash
-# Ubuntu/WSL2 - Install PortAudio system library
-sudo apt-get install portaudio19-dev python3-pyaudio
-
-# Install Python dependencies
-pip install sounddevice soundfile pydub
-
-# Test voice recording
-python voice_sweatbot.py
-```
-
-**Voice Commands Examples**:
-- `python voice_sweatbot.py` - Interactive voice mode
-- Press ENTER to start voice recording
-- Speak Hebrew: "עשיתי 20 סקוואטים"
-- System auto-stops after silence, processes with PersonalSweatBot
+**Browser-based Voice Interface**: Uses Web Audio API
+- **Real-time Recording**: MediaRecorder API for browser recording
+- **Hebrew Transcription**: Planned integration with cloud-based or local models (currently browser-only)
+- **Conversation Persistence**: Stored in MongoDB via backend API
 
 **Hebrew Command Examples**:
 - `"עשיתי 20 סקוואטים"` → Logs 20 squats
 - `"בק סקווט 50 קילו 5 חזרות"` → Back squat 50kg, 5 reps
 - `"רצתי 5 קילומטר ב-25 דקות"` → 5km run in 25 minutes
 
-### MongoDB Conversation Persistence Architecture
-Located in `src/agents/mongodb_memory.py`:
-- **MongoDBMemory Class**: Extends Phidata AgentMemory with MongoDB backend
-- **Session Management**: Automatic session detection with 2-hour timeout
-- **Context Loading**: Retrieves recent conversations on bot startup
-- **Metadata Extraction**: Exercise detection, language identification, statistics requests
-- **Search & Analytics**: Full-text search and user behavior analysis
+### Conversation Persistence
+**MongoDB Storage**: Accessed via FastAPI backend
+- **Database**: `mongodb://sweatbot:secure_password@localhost:8002/`
+- **Collection**: `sweatbot_conversations`
+- **Features**: Session continuity, conversation history, context retrieval
+- **Integration**: Frontend → Backend API → MongoDB
 
-**Connection Details**:
-- **Database**: `mongodb://sweatbot:secure_password@localhost:27017/`
-- **Collection**: `sweatbot_conversations.conversations`
-- **User Isolation**: Each user has separate conversation threads
-- **Features**: Session continuity, conversation search, preference analysis
+### Volt Agent Tool System
+**TypeScript-based tools** in `personal-ui-vite/src/agent/tools/`:
+- **Intelligent Tool Selection**: AI automatically chooses the right tool
+- **Natural Language Understanding**: No command memorization needed
+- **Hebrew/English Support**: All tools handle both languages
 
-**Integration Flow**:
-1. **PersonalSweatBot** → Uses `MongoDBMemory(user_id="personal")`
-2. **Message Storage** → All conversations saved with metadata
-3. **Context Retrieval** → Recent conversations loaded on startup
-4. **Dual Persistence** → Exercises to PostgreSQL, conversations to MongoDB
-
-### Intelligent Tool-Based Agent System
-Located in `src/agents/`:
-- **PersonalSweatBotWithTools**: Advanced AI agent with natural language understanding
-- **Specialized Tools Architecture**: Each action handled by dedicated tools
-- **No Command Memorization**: Understands intent from natural language
-
-**Tool Architecture**:
+**Available Tools**:
 ```
-src/agents/tools/
-├── exercise_logger.py      # Logs exercises from natural language
-├── statistics_retriever.py # Gets points, stats, and progress
-├── data_manager.py         # Resets/clears data (with confirmation)
-├── goal_setter.py          # Manages fitness goals
-├── progress_analyzer.py    # Analyzes trends and insights
-└── workout_suggester.py    # Suggests personalized workouts
+personal-ui-vite/src/agent/tools/
+├── exerciseLogger.ts      # Logs exercises with Hebrew recognition
+├── statsRetriever.ts      # Gets points, stats, and progress
+├── dataManager.ts         # Resets/clears data (with confirmation)
+├── goalSetter.ts          # Manages fitness goals
+├── progressAnalyzer.ts    # Analyzes trends and insights
+└── workoutSuggester.ts    # Suggests personalized workouts
 ```
 
 **Natural Language Examples**:
@@ -269,37 +366,26 @@ src/agents/tools/
 - **Context Awareness**: Uses conversation history for better understanding
 
 ### Real-time Features Architecture
-- **WebSocket Handler**: `app/websocket/handlers.py` manages connections
-- **Connection Manager**: `connection_manager.py` handles client lifecycle
+- **WebSocket Handler**: `backend/app/websocket/handlers.py` manages connections
+- **Connection Manager**: `backend/app/websocket/connection_manager.py` handles client lifecycle
 - **Event Types**: `exercise_update`, `achievement_unlocked`, `stats_update`, `challenge_complete`
-- **Frontend Integration**: `contexts/WebSocketContext.tsx` for React state management
+- **Frontend Integration**: WebSocket client in React components
 
 ### Gamification System
 **Core Components**:
-- **Points Engine**: `gamification_service.py` calculates exercise-based scoring
+- **Points Engine**: `backend/app/services/gamification_service.py` calculates exercise-based scoring
 - **Achievement System**: Badge unlocks with Hebrew celebrations
 - **Level Progression**: מתחיל → חובב → מתקדם → מומחה → אלוף
 - **Challenges**: Daily/weekly goals with bonus multipliers
 - **Personal Records**: Automatic PR detection and notifications
 
-## Multi-Architecture Support
+## Current Architecture
 
-### Current Active System
-- **Location**: `/backend/`, `/frontend/`, `/src/mastra/`
-- **Status**: Production-ready with Mastra AI integration
-- **Ports**: Backend 8000, Frontend 4000
-- **Database**: PostgreSQL primary, SQLite fallback
-
-### Legacy Systems (Maintained)
-1. **Hebrew Crossfit AI**: `hebrew-crossfit-ai/`
-   - Desktop tkinter application
-   - SQLite database: `workout_data.db`
-   - Direct model integration
-
-2. **Hebrew Fitness Hybrid**: `hebrew-fitness-hybrid/`
-   - Intermediate microservices architecture
-   - Docker Compose deployment
-   - Frontend port 4567, Backend port 8765
+### Active Components
+- **Backend**: `/backend/` - FastAPI (Python) on port 8000
+- **Frontend**: `/personal-ui-vite/` - Vite + React + Volt Agent on port 8005
+- **Databases**: PostgreSQL (8001), MongoDB (8002), Redis (8003)
+- **Status**: Production-ready hybrid architecture
 
 ## Environment Configuration
 
@@ -312,9 +398,10 @@ DATABASE_URL=postgresql+asyncpg://fitness_user:secure_password@postgres:5432/heb
 MONGODB_URL=mongodb://sweatbot:secure_password@localhost:27017/
 MONGODB_DATABASE=sweatbot_conversations
 
-# AI Configuration  
-WHISPER_MODEL_SIZE=base
-GEMINI_API_KEY=your_key_here
+# AI Configuration (Frontend .env)
+VITE_GEMINI_API_KEY=your_key_here
+VITE_GROQ_API_KEY=your_key_here
+VITE_BACKEND_URL=http://localhost:8000
 
 # Security
 SECRET_KEY=your-256-bit-secret-key
@@ -323,14 +410,14 @@ ALGORITHM=HS256
 # Development
 DEBUG=true
 LOG_LEVEL=INFO
-CORS_ORIGINS=http://localhost:3000,http://localhost:4000
+CORS_ORIGINS=http://localhost:8000,http://localhost:8001,http://localhost:8002,http://localhost:8003,http://localhost:8004,http://localhost:8005,http://localhost:8006,http://localhost:8007
 ```
 
-### Docker Profiles
-- **default**: Development with hot reload
-- **production**: Optimized production build with Nginx
-- **monitoring**: Prometheus + Grafana metrics
-- **storage**: MinIO object storage for media files
+### Docker Services
+- **postgres**: PostgreSQL database (port 8001)
+- **mongodb**: MongoDB for conversations (port 8002)
+- **redis**: Redis cache (port 8003)
+- **volt-models**: Optional local AI models (port 8006)
 
 ## Important File Locations
 
@@ -339,22 +426,31 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:4000
 - `backend/app/services/hebrew_parser_service.py`: Hebrew command processing
 - `backend/app/services/gamification_service.py`: Points and achievements
 - `backend/app/models/models.py`: Database models and schemas
-- `src/agents/mongodb_memory.py`: MongoDB conversation persistence
-- `src/agents/personal_sweatbot_with_tools.py`: **Advanced tool-based SweatBot (CURRENT)**
-- `src/agents/personal_sweatbot_enhanced.py`: Legacy enhanced bot (deprecated)
-- `src/agents/tools/`: Specialized tool modules for intelligent function calling
 
-### Frontend Components
-- `app/page.tsx`: Main application interface
-- `components/VoiceRecorder.tsx`: Voice input handling
-- `components/ExerciseLogger.tsx`: Exercise tracking UI
-- `contexts/WebSocketContext.tsx`: Real-time communication
+### Volt Agent (TypeScript) - NEW
+- `personal-ui-vite/src/agent/index.ts`: Main Volt Agent initialization
+- `personal-ui-vite/src/agent/tools/`: All 6 SweatBot tools in TypeScript
+  - `exerciseLogger.ts`: Exercise logging with Hebrew support
+  - `statsRetriever.ts`: Statistics and points retrieval
+  - `dataManager.ts`: Data reset and management
+  - `goalSetter.ts`: Goal setting and tracking
+  - `progressAnalyzer.ts`: Progress analysis and insights
+  - `workoutSuggester.ts`: Personalized workout suggestions
+- `personal-ui-vite/src/agent/providers/`: AI provider implementations
+  - `gemini.ts`: Direct Gemini API integration
+  - `groq.ts`: Direct Groq API integration (tool-use models)
+  - `localModels.ts`: Connection to port 8006 service
+- `personal-ui-vite/src/agent/memory/mongoMemory.ts`: Conversation persistence interface
+
+### Frontend Components  
+- `personal-ui-vite/src/App.tsx`: Main application routing
+- `personal-ui-vite/src/pages/Chat.tsx`: Chat interface with Volt Agent
+- `personal-ui-vite/src/components/SweatBotChat.tsx`: SweatBot chat component
 
 ### Configuration & Data
-- `data/behavior-patterns.json`: User behavior analytics
-- `models/transformers/`: Cached Whisper models (5GB+)
-- `gamification_data/`: Achievement and progress data
-- `.bmad-core/`: BMAD agent configurations
+- `data/session-history.json`: User session tracking
+- `.env`: Backend environment variables
+- `personal-ui-vite/.env`: Frontend environment variables
 
 ## Tool-Based Architecture (Current System)
 
@@ -423,16 +519,16 @@ SweatBot now uses an **intelligent tool-based architecture** where the AI agent 
 
 ### Usage Examples
 
-```python
-# Initialize the advanced bot
-from src.agents.personal_sweatbot_with_tools import PersonalSweatBotWithTools
+```typescript
+// Initialize Volt Agent (happens automatically in frontend)
+import { getSweatBotAgent } from './agent';
 
-bot = PersonalSweatBotWithTools()
+const agent = getSweatBotAgent();
 
-# Natural conversations - no commands needed
-bot.chat("עשיתי 25 סקוואטים")  # Logs exercise automatically
-bot.chat("כמה נקודות יש לי?")    # Shows statistics automatically
-bot.chat("מה לעשות עכשיו?")      # Suggests workout automatically
+// Natural conversations - no commands needed
+await agent.chat("עשיתי 25 סקוואטים");  // Logs exercise automatically
+await agent.chat("כמה נקודות יש לי?");   // Shows statistics automatically
+await agent.chat("מה לעשות עכשיו?");      // Suggests workout automatically
 ```
 
 ### Benefits of Tool-Based Architecture
@@ -448,10 +544,10 @@ bot.chat("מה לעשות עכשיו?")      # Suggests workout automatically
 ### Developer Usage
 
 When working with the tool-based system:
-- **Use**: `PersonalSweatBotWithTools` (current)
-- **Avoid**: `PersonalSweatBotEnhanced` (legacy, pattern-based)
+- **Frontend AI**: Volt Agent in `personal-ui-vite/src/agent/`
+- **Backend Logic**: FastAPI services in `backend/app/services/`
 - **Test**: Natural language input, not specific commands
-- **Extend**: Add new tools to `src/agents/tools/` directory
+- **Extend**: Add new tools to `personal-ui-vite/src/agent/tools/`
 
 ## Development Principles
 
@@ -461,32 +557,20 @@ When working with the tool-based system:
 - **Dual Storage**: Store both Hebrew and English exercise names
 - **Voice Processing**: Custom Hebrew grammar rules and number parsing
 
-### Model Management
-- **Singleton Pattern**: `hebrew_model_manager.py` prevents multiple loadings
-- **Lazy Loading**: Models initialize on first use (30-second startup delay)
-- **Memory Management**: ~5GB RAM requirement for Whisper model
-- **Caching**: Redis for frequently accessed model outputs
+### AI Provider Management
+- **Primary**: Gemini API (direct from browser)
+- **Fallback**: Groq API (direct from browser)
+- **Future**: Local models via port 8006 service
+- **Caching**: Redis for conversation context
 
-### BMAD Development Workflow
-1. **Analysis Phase**: Use `bmad:analyst` for requirement gathering
-2. **Planning**: `bmad:pm` for feature prioritization
-3. **Architecture**: `bmad:architect` for system design
-4. **Development**: Role-specific BMAD agents guide implementation
-5. **Testing**: `bmad:qa` for comprehensive validation
-
-### Squad Coordination
-- **Role Files**: `.squad/role-definition-*.md` define responsibilities
-- **Communication**: `.squad/role-comm-*.md` track inter-role discussions
-- **Synchronization**: Regular `squad:sync` ensures alignment
-- **Planning**: Feature development follows squad methodology
 
 ## Performance Considerations
 
 ### System Requirements
-- **Memory**: 8GB+ RAM (5GB for Whisper model)
-- **Storage**: 10GB+ for models and data
-- **Network**: Stable connection for real-time features
-- **Database**: PostgreSQL recommended for production
+- **Memory**: 2GB+ RAM (cloud-based AI, no local models)
+- **Storage**: 2GB+ for application and databases
+- **Network**: Stable connection for API calls
+- **Database**: PostgreSQL for production, SQLite for development
 
 ### Optimization Strategies
 - **Model Caching**: Redis for processed voice commands

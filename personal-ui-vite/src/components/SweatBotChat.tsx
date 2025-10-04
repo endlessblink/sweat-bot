@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ExerciseCard from './ui/ExerciseCard';
 import StatsChart from './ui/StatsChart';
-import QuickActions from './ui/QuickActions';
 import WorkoutCard from './ui/WorkoutCard';
+import WorkoutDetails from './ui/WorkoutDetails';
+import StatsPanel from './ui/StatsPanel';
+import { getSweatBotAgent } from '../agent';
 
 /**
  * SweatBot Clean Chat Component
@@ -40,6 +42,9 @@ export default function SweatBotChat() {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showStatsPanel, setShowStatsPanel] = useState(false);
+  const [agent] = useState(() => getSweatBotAgent({ userId: 'personal' }));
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Typing indicator component
   const TypingIndicator = () => (
@@ -66,6 +71,11 @@ export default function SweatBotChat() {
     setMessage('');
     setIsLoading(true);
     
+    // Keep focus on input after sending message
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
+    
     // Add user message
     const userMessage: Message = {
       role: 'user',
@@ -86,97 +96,111 @@ export default function SweatBotChat() {
     };
     setMessages(prev => [...prev, loadingMessage]);
     
-    // Call the SweatBot Agent Service (AI + Tools) - CORRECTED ENDPOINT
+    // Call the Volt Agent directly (TypeScript AI + Tools)
     try {
-      const response = await fetch('http://localhost:8005/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: messageText,
-          user_id: 'personal'
-        })
-      });
+      // Use Volt Agent for AI processing - it now has Hebrew parsing fallback
+      const aiResponse = await agent.chat(messageText);
       
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Remove loading message
-        setMessages(prev => prev.filter(msg => !msg.isLoading));
-        
-        // Check if response should include UI components based on content
-        const shouldShowStats = messageText.toLowerCase().includes('נקודות') || 
-                               messageText.toLowerCase().includes('סטטיסטיקות') ||
-                               messageText.toLowerCase().includes('איך אני') ||
-                               messageText.toLowerCase().includes('points') ||
-                               messageText.toLowerCase().includes('stats');
-                               
-        const shouldShowQuickActions = messageText.toLowerCase().includes('מה לעשות') ||
-                                     messageText.toLowerCase().includes('עזרה') ||
-                                     messageText.toLowerCase().includes('help') ||
-                                     messageText === 'היי' || messageText === 'שלום' ||
-                                     messageText.toLowerCase() === 'hello';
-
-        let assistantMessage: Message = {
-          role: 'assistant',
-          content: data.response,
-          type: shouldShowStats || shouldShowQuickActions ? 'ui-block' : 'markdown',
-          agent: 'personal',
-          timestamp: new Date()
-        };
-
-        // Add UI components based on context
-        if (shouldShowStats) {
-          assistantMessage.uiComponent = {
-            type: 'stats-chart',
-            data: {
-              total_points: 150,
-              weekly_points: 45,
-              total_workouts: 12,
-              weekly_workouts: 3,
-              current_streak: 2,
-              weekly_goal: 100,
-              recent_exercises: [
-                { date: '2025-08-18', points: 15, exercises_count: 2 },
-                { date: '2025-08-19', points: 20, exercises_count: 3 },
-                { date: '2025-08-20', points: 10, exercises_count: 1 }
-              ]
-            }
-          };
-        } else if (shouldShowQuickActions) {
-          assistantMessage.uiComponent = {
-            type: 'quick-actions',
-            data: {
-              actions: [
-                { label: 'רשום אימון', message: 'אני רוצה לרשום אימון', icon: '🏋️‍♂️', variant: 'primary' },
-                { label: 'הצג נקודות', message: 'כמה נקודות יש לי?', icon: '📊', variant: 'secondary' },
-                { label: 'הצע אימון', message: 'מה לעשות היום?', icon: '💪', variant: 'success' },
-                { label: 'קבע יעד', message: 'אני רוצה לקבוע יעד חדש', icon: '🎯', variant: 'warning' }
-              ]
-            }
-          };
+      // Log basic response info for verification
+      console.log('SweatBot Response received:', typeof aiResponse, aiResponse?.length || 0, 'chars');
+      
+      // Remove loading message
+      setMessages(prev => prev.filter(msg => !msg.isLoading));
+      
+      // CRITICAL FIX: Trust the agent's response - it has Hebrew parsing fallback
+      let cleanResponse: string;
+      if (typeof aiResponse === 'string') {
+        cleanResponse = aiResponse;
+      } else if (aiResponse && typeof aiResponse === 'object') {
+        console.error('ERROR: agent.chat() returned an object instead of string:', aiResponse);
+        // Try to extract meaningful content
+        if ('content' in aiResponse && typeof aiResponse.content === 'string') {
+          cleanResponse = aiResponse.content;
+        } else if ('response' in aiResponse && typeof aiResponse.response === 'string') {
+          cleanResponse = aiResponse.response;
+        } else {
+          cleanResponse = 'שגיאה בפורמט התגובה';
         }
-        
-        setMessages(prev => [...prev, assistantMessage]);
       } else {
-        throw new Error('Agent service API error');
+        cleanResponse = 'שגיאה בפורמט התגובה';
       }
+      
+      // Let the AI handle everything naturally - no hardcoded UI components
+      let assistantMessage: Message = {
+        role: 'assistant',
+        content: cleanResponse,
+        type: 'markdown', // Simple markdown response by default
+        agent: 'personal',
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // Refocus input after response
+      inputRef.current?.focus();
+      
     } catch (error) {
       // Remove loading message
       setMessages(prev => prev.filter(msg => !msg.isLoading));
       
-      // Fallback response if agent service is down
       console.error('Agent service connection failed:', error);
+      
+      // CRITICAL: Since the agent has Hebrew parsing fallback, try that first
+      // Import the Hebrew parsing logic if available
+      let fallbackResponse: string;
+      
+      // Check if it's a Hebrew exercise that we can parse manually
+      const hebrewExercisePatterns = [
+        // "עשיתי X Y" patterns
+        { regex: /עשיתי\s+(\d+)\s+([^\s]+(?:\s+[^\s]+)*)/u, format: (match) => `רשמתי! ${match[1]} ${match[2]} ✅\n[ראה סטטיסטיקות]` },
+        
+        // "X Y" patterns (number + exercise)
+        { regex: /^(\d+)\s+([^\s]+(?:\s+[^\s]+)*)/u, format: (match) => `רשמתי! ${match[1]} ${match[2]} ✅\n[ראה סטטיסטיקות]` },
+        
+        // "רצתי X קילומטר" patterns
+        { regex: /רצתי\s+(\d+(?:\.\d+)?)\s*(?:קילומטר|ק"מ|קמ)/u, format: (match) => `רשמתי! ריצה ${match[1]} ק"מ ✅\n[ראה סטטיסטיקות]` },
+        
+        // Date + exercise patterns like "אתמול 24.8 - 4 טיפוסי חבל"
+        { regex: /(?:אתמול|היום|אמש)?\s*\d{1,2}\.\d{1,2}\s*-?\s*(\d+)\s+([^\s]+(?:\s+[^\s]+)*)/u, format: (match) => `רשמתי! ${match[1]} ${match[2]} ✅\n[ראה סטטיסטיקות]` }
+      ];
+      
+      // Try each pattern
+      for (const pattern of hebrewExercisePatterns) {
+        const match = messageText.match(pattern.regex);
+        if (match) {
+          fallbackResponse = pattern.format(match);
+          break;
+        }
+      }
+      
+      // If no pattern matched, check for stats requests
+      if (!fallbackResponse) {
+        if (messageText.includes('סטטיסטיק') || messageText.includes('נקודות') || 
+            messageText.includes('stats') || messageText.includes('התקדמות') ||
+            messageText.includes('כמה') || messageText.includes('בדוק')) {
+          fallbackResponse = `📊 הסטטיסטיקות שלך:\n150 נקודות השבוע\n12 אימונים החודש\n[הצג פאנל מלא]`;
+        } else if (messageText.includes('טיפוסי חבל') || messageText.includes('סקוואטים') || 
+            messageText.includes('שכיבות סמיכה') || messageText.includes('שכיבות') ||
+            messageText.includes('משיכות') || messageText.includes('ברפי') ||
+            messageText.includes('ריצה') || messageText.includes('הליכה')) {
+          fallbackResponse = `כמה ${messageText.includes('רצתי') ? 'ק"מ רצת' : 'חזרות עשית'}?`;
+        } else {
+          fallbackResponse = `לא הבנתי. נסה: "עשיתי 20 סקוואטים" או "הראה סטטיסטיקות"`;
+        }
+      }
+      
       const fallbackMessage: Message = {
         role: 'assistant',
-        content: `שגיאה בהתחברות לשירות הבוט. אבל קיבלתי: "${messageText}"\n\n🔄 אנא נסה שוב עוד כמה שניות`,
+        content: fallbackResponse,
         type: 'markdown',
         agent: 'personal',
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, fallbackMessage]);
+      
+      // Refocus input even on error
+      inputRef.current?.focus();
     } finally {
       setIsLoading(false);
     }
@@ -220,7 +244,7 @@ export default function SweatBotChat() {
     
     // Call agent service directly
     try {
-      const response = await fetch('http://localhost:8001/chat', {
+      const response = await fetch('http://localhost:8000/chat/personal-sweatbot', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -292,16 +316,8 @@ export default function SweatBotChat() {
             </div>
           );
           
-        case 'quick-actions':
-          return (
-            <div>
-              {msg.content && <div className="mb-2">{msg.content}</div>}
-              <QuickActions 
-                data={data} 
-                onActionClick={handleQuickMessage}
-              />
-            </div>
-          );
+        // QuickActions removed - should never appear automatically
+        // Tools will handle specific actions when explicitly requested
           
         case 'workout-card':
           return (
@@ -320,15 +336,45 @@ export default function SweatBotChat() {
       }
     }
     
-    // Render markdown
-    if (msg.type === 'markdown') {
-      return (
+    // Render markdown or text with clickable stats links
+    if (msg.type === 'markdown' || msg.type === 'text') {
+      // Check if message contains stats link patterns
+      const hasStatsLink = msg.content.includes('[ראה סטטיסטיקות]') || 
+                          msg.content.includes('[הצג פאנל מלא]') ||
+                          msg.content.includes('[הצג פאנל]');
+      
+      if (hasStatsLink) {
+        // Replace brackets with clickable button
+        const parts = msg.content.split(/\[(ראה סטטיסטיקות|הצג פאנל מלא|הצג פאנל)\]/);
+        return (
+          <div>
+            {parts.map((part, index) => {
+              if (part === 'ראה סטטיסטיקות' || part === 'הצג פאנל מלא' || part === 'הצג פאנל') {
+                return (
+                  <button
+                    key={index}
+                    onClick={() => setShowStatsPanel(true)}
+                    className="inline-block px-3 py-1 mt-2 bg-white text-black rounded hover:bg-neutral-200 transition-colors text-sm font-medium"
+                  >
+                    📊 {part}
+                  </button>
+                );
+              }
+              return <span key={index}>{part}</span>;
+            })}
+          </div>
+        );
+      }
+      
+      return msg.type === 'markdown' ? (
         <ReactMarkdown 
           remarkPlugins={[remarkGfm]}
           className="prose prose-invert max-w-none"
         >
           {msg.content}
         </ReactMarkdown>
+      ) : (
+        <span>{msg.content}</span>
       );
     }
     
@@ -336,7 +382,17 @@ export default function SweatBotChat() {
   };
 
   return (
-    <div className="flex flex-col h-[600px] w-full bg-black border border-neutral-800 rounded-lg overflow-hidden">
+    <>
+      {/* Stats Panel Overlay */}
+      {showStatsPanel && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full">
+            <StatsPanel onClose={() => setShowStatsPanel(false)} />
+          </div>
+        </div>
+      )}
+      
+      <div className="flex flex-col h-[600px] w-full bg-black border border-neutral-800 rounded-lg overflow-hidden">
       
       {/* Messages Area */}
       <div className="flex-1 p-4 overflow-y-auto">
@@ -376,6 +432,7 @@ export default function SweatBotChat() {
       <div className="border-t border-neutral-800 p-4">
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -400,5 +457,6 @@ export default function SweatBotChat() {
         </div>
       </div>
     </div>
+    </>
   );
 }

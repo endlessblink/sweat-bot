@@ -413,52 +413,15 @@ class WebSocketHandler:
     
     async def generate_fallback_response(self, message: str) -> str:
         """Generate simple fallback response when AI is unavailable"""
-        message_lower = message.lower()
-        
-        # Greeting responses
-        if any(greeting in message_lower for greeting in ["שלום", "היי", "הי", "בוקר טוב", "ערב טוב"]):
-            return "שלום! איך אתה מרגיש היום? בוא נתחיל לעקוב אחרי האימונים שלך! 💪"
-        
-        # Status queries
-        if any(word in message_lower for word in ["מה המצב", "איך אני", "סטטיסטיקה", "נתונים", "התקדמות"]):
-            stats = await self.get_user_stats()
-            return f"הסטטיסטיקות שלך: {stats['total_points']} נקודות, רצף של {stats['current_streak']} ימים. היום צברת {stats['today_points']} נקודות! 📊"
-        
-        # Exercise queries
-        if any(word in message_lower for word in ["תרגיל", "אימון", "להתאמן", "כושר"]):
-            return "מעולה! פשוט ספר לי מה עשית. למשל: 'עשיתי 20 סקוואטים' או 'דדליפט 60 קילו'. אני אעקוב אחרי הכל! 🏋️‍♂️"
-        
-        # Exercise reporting
-        if any(word in message_lower for word in ["עשיתי", "ביצעתי", "הרמתי", "רצתי", "קפצתי"]):
-            return "אחלה! נרשם בהצלחה. תמיד אפשר להוסיף עוד פרטים כמו משקל או מספר חזרות. איך הרגשת באימון? 💪"
-        
-        # Deadlift specific
-        if any(word in message_lower for word in ["דדליפט", "deadlift", "הרמה", "60 קילו", "קילו"]):
-            return "דדליפט זה תרגיל מצוין! 60 קילו לפעם הראשונה זה הישג נהדר. איך הרגשת עם המשקל הזה? 🔥"
-        
-        # Motivation
-        if any(word in message_lower for word in ["עייף", "קשה", "לא מצליח", "מתקשה", "כואב"]):
-            return "זה נורמלי לחלוטין! כל מאמן יגיד לך שההתחלה הכי קשה. אתה כבר בדרך הנכונה! 🌟"
-        
-        # Weight/strength related
-        if any(word in message_lower for word in ["משקל", "חזק", "כוח", "שריר"]):
-            return "כל הכבוד! בניית כוח וחוזק זה תהליך שדורש סבלנות. אתה בכיוון הנכון! 💪"
-        
-        # Default response - more encouraging and specific
-        return "אני כאן בשבילך! ספר לי על האימון האחרון שלך או איך אני יכול לעזור לך היום? 😊"
+        # Trust the frontend AI to handle all messages naturally
+        # This is only for emergency fallback when everything else fails
+        return "שגיאה זמנית בשירות. אנא נסה שוב."
     
     def get_suggested_actions(self, message: str) -> list:
         """Get suggested quick actions based on context"""
-        actions = []
-        
-        # Always suggest common exercises
-        actions.extend([
-            {"label": "20 סקוואטים", "action": "log_exercise", "data": {"text": "עשיתי 20 סקוואטים"}},
-            {"label": "10 שכיבות", "action": "log_exercise", "data": {"text": "עשיתי 10 שכיבות סמיכה"}},
-            {"label": "סטטיסטיקה", "action": "request_stats", "data": {}}
-        ])
-        
-        return actions
+        # Let the AI decide what actions to suggest based on conversation context
+        # Don't force UI elements unless the user asks for them
+        return []
 
 async def websocket_endpoint(
     websocket: WebSocket,
