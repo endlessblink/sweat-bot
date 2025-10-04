@@ -463,6 +463,9 @@ export class SweatBotAgent {
               result += `\n\n🏆 שיא אישי חדש!`;
             }
 
+            // Add link to statistics
+            result += `\n\n[ראה סטטיסטיקות]`;
+
             return result;
           } catch (error) {
             console.error('Exercise logging error:', error);
