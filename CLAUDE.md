@@ -9,6 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **NEVER save screenshots anywhere else!**
 
+# ALWAYS CREATE AND UPDATE LIKE I SAID TASKS BEFORE DOING ANYTHING!!!
+
 **Required Structure**:
 ```
 docs/screenshots-debug/

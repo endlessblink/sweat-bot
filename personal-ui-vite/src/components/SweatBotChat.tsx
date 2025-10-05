@@ -357,13 +357,28 @@ export default function SweatBotChat() {
       )}
       
       <div className="flex flex-col h-[600px] w-full bg-black border border-neutral-800 rounded-lg overflow-hidden">
-      
+
+      {/* Header with Statistics Button */}
+      <div className="flex justify-between items-center px-4 py-3 border-b border-neutral-800 bg-neutral-950">
+        <div>
+          <h2 className="text-lg font-bold text-white">SweatBot</h2>
+          <p className="text-xs text-neutral-500">המאמן הכושר הדיגיטלי שלך</p>
+        </div>
+        <button
+          onClick={() => setShowStatsPanel(true)}
+          className="px-3 py-2 bg-neutral-800 text-white border border-neutral-700 rounded hover:bg-neutral-700 transition-colors text-sm font-medium flex items-center gap-2"
+          title="הצג סטטיסטיקות"
+        >
+          <span>📊</span>
+          <span className="hidden sm:inline">סטטיסטיקות</span>
+        </button>
+      </div>
+
       {/* Messages Area */}
       <div className="flex-1 p-4 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-neutral-500 text-sm text-center">
-              <div className="mb-2">SweatBot</div>
               <div className="text-xs text-neutral-600">שלח הודעה כדי להתחיל</div>
             </div>
           </div>
