@@ -163,7 +163,7 @@ export default function StatsPanel({ onClose }: { onClose?: () => void }) {
           סה״כ {stats.total_exercises} תרגילים החודש
         </div>
         <div className="mt-2 bg-neutral-900 rounded-full h-2 overflow-hidden">
-          <div 
+          <div
             className="h-full bg-gradient-to-r from-green-500 to-blue-500 transition-all duration-500"
             style={{ width: `${Math.min((stats.weekly_points / 200) * 100, 100)}%` }}
           />
@@ -172,6 +172,47 @@ export default function StatsPanel({ onClose }: { onClose?: () => void }) {
           {Math.round((stats.weekly_points / 200) * 100)}% מהיעד השבועי (200 נקודות)
         </div>
       </div>
+
+      {/* Clear Statistics Button */}
+      <div className="mt-6 pt-4 border-t border-neutral-800">
+        <button
+          onClick={() => {
+            if (window.confirm('האם אתה בטוח שברצונך למחוק את כל הסטטיסטיקות? פעולה זו בלתי הפיכה!')) {
+              handleClearStats();
+            }
+          }}
+          className="w-full px-4 py-2 bg-red-900/30 text-red-400 border border-red-800 rounded hover:bg-red-900/50 transition-colors text-sm font-medium"
+        >
+          🗑️ נקה כל הסטטיסטיקות
+        </button>
+      </div>
     </div>
   );
+}
+
+async function handleClearStats() {
+  try {
+    const { getOrCreateGuestToken } = await import('../../utils/auth');
+    const token = await getOrCreateGuestToken();
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
+    const response = await fetch(`${backendUrl}/exercises/clear-all`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (response.ok) {
+      alert('✅ כל הסטטיסטיקות נמחקו בהצלחה!');
+      window.location.reload(); // Reload to show cleared data
+    } else {
+      const error = await response.text();
+      alert(`❌ שגיאה: ${error}`);
+    }
+  } catch (error) {
+    console.error('Failed to clear stats:', error);
+    alert('❌ שגיאה במחיקת הסטטיסטיקות');
+  }
 }
