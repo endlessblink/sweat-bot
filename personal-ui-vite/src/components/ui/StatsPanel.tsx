@@ -29,10 +29,14 @@ export default function StatsPanel({ onClose }: { onClose?: () => void }) {
 
   const fetchStats = async () => {
     try {
+      // Get authentication token
+      const token = localStorage.getItem('guestToken') || 'default-guest-token';
+
       // Fetch real statistics from backend
-      const response = await fetch('http://localhost:8000/api/v1/statistics', {
+      const response = await fetch('http://localhost:8000/exercises/statistics', {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
 
@@ -40,19 +44,9 @@ export default function StatsPanel({ onClose }: { onClose?: () => void }) {
         const data = await response.json();
         setStats(data);
       } else {
-        // Fallback to mock data if API fails
-        setStats({
-          total_points: 768,
-          weekly_points: 150,
-          monthly_points: 520,
-          total_exercises: 12,
-          recent_exercises: [
-            { id: 1, name_he: 'טיפוסי חבל', reps: 4, sets: 1, points_earned: 40, created_at: '2025-08-24' },
-            { id: 2, name_he: 'סקוואטים', reps: 20, sets: 3, points_earned: 120, created_at: '2025-08-23' },
-            { id: 3, name_he: 'שכיבות סמיכה', reps: 15, sets: 4, points_earned: 90, created_at: '2025-08-22' },
-          ],
-          achievements: ['רצף של 3 ימים', 'שיא אישי בסקוואטים', '100 נקודות ביום']
-        });
+        const errorText = await response.text();
+        console.error('Failed to fetch statistics:', response.status, errorText);
+        setError('שגיאה בטעינת הסטטיסטיקות');
       }
     } catch (err) {
       console.error('Failed to fetch stats:', err);

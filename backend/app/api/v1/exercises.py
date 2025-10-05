@@ -230,7 +230,7 @@ async def get_exercise_statistics(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get comprehensive exercise statistics"""
+    """Get comprehensive exercise statistics matching frontend expectations"""
     # Get total stats
     total_query = select(
         func.count(Exercise.id).label('total_exercises'),
@@ -238,61 +238,69 @@ async def get_exercise_statistics(
         func.sum(Exercise.weight_kg * Exercise.reps * Exercise.sets).label('total_weight'),
         func.sum(Exercise.points_earned).label('total_points')
     ).join(Workout).where(Workout.user_id == current_user.id)
-    
+
     total_result = await db.execute(total_query)
     total_stats = total_result.first()
-    
-    # Get exercise breakdown
-    breakdown_query = select(
-        Exercise.name_he,
-        func.count(Exercise.id).label('count'),
-        func.sum(Exercise.reps * Exercise.sets).label('total_reps'),
-        func.sum(Exercise.points_earned).label('points')
-    ).join(Workout).where(
-        Workout.user_id == current_user.id
-    ).group_by(Exercise.name_he).order_by(func.sum(Exercise.points_earned).desc())
-    
-    breakdown_result = await db.execute(breakdown_query)
-    exercise_breakdown = breakdown_result.all()
-    
-    # Get weekly progress
+
+    # Get weekly points
     week_ago = datetime.now() - timedelta(days=7)
     weekly_query = select(
-        func.date(Exercise.timestamp).label('date'),
-        func.count(Exercise.id).label('count'),
-        func.sum(Exercise.points_earned).label('points')
+        func.sum(Exercise.points_earned).label('weekly_points')
     ).join(Workout).where(
         and_(
             Workout.user_id == current_user.id,
             Exercise.timestamp >= week_ago
         )
-    ).group_by(func.date(Exercise.timestamp))
-    
+    )
     weekly_result = await db.execute(weekly_query)
-    weekly_progress = weekly_result.all()
-    
+    weekly_stats = weekly_result.first()
+
+    # Get monthly points
+    month_ago = datetime.now() - timedelta(days=30)
+    monthly_query = select(
+        func.sum(Exercise.points_earned).label('monthly_points')
+    ).join(Workout).where(
+        and_(
+            Workout.user_id == current_user.id,
+            Exercise.timestamp >= month_ago
+        )
+    )
+    monthly_result = await db.execute(monthly_query)
+    monthly_stats = monthly_result.first()
+
+    # Get recent exercises (last 10)
+    recent_query = select(Exercise).join(Workout).where(
+        Workout.user_id == current_user.id
+    ).order_by(Exercise.timestamp.desc()).limit(10)
+
+    recent_result = await db.execute(recent_query)
+    recent_exercises = recent_result.scalars().all()
+
+    # Get achievements (placeholder - can be enhanced later)
+    achievements = []
+    if total_stats.total_points and total_stats.total_points > 100:
+        achievements.append('צבירת 100+ נקודות')
+    if weekly_stats.weekly_points and weekly_stats.weekly_points > 50:
+        achievements.append('50+ נקודות השבוע')
+    if total_stats.total_exercises and total_stats.total_exercises >= 10:
+        achievements.append(f'{total_stats.total_exercises} תרגילים הושלמו')
+
     return {
-        "total_stats": {
-            "total_exercises": total_stats.total_exercises or 0,
-            "total_reps": total_stats.total_reps or 0,
-            "total_weight_kg": total_stats.total_weight or 0,
-            "total_points": total_stats.total_points or 0
-        },
-        "exercise_breakdown": [
+        "total_points": total_stats.total_points or 0,
+        "weekly_points": weekly_stats.weekly_points or 0,
+        "monthly_points": monthly_stats.monthly_points or 0,
+        "total_exercises": total_stats.total_exercises or 0,
+        "recent_exercises": [
             {
-                "name": ex.name_he,
-                "count": ex.count,
-                "total_reps": ex.total_reps,
-                "points": ex.points
-            } for ex in exercise_breakdown
+                "id": ex.id,
+                "name_he": ex.name_he,
+                "reps": ex.reps,
+                "sets": ex.sets,
+                "points_earned": ex.points_earned,
+                "created_at": ex.timestamp.strftime("%Y-%m-%d")
+            } for ex in recent_exercises
         ],
-        "weekly_progress": [
-            {
-                "date": str(wp.date),
-                "exercises": wp.count,
-                "points": wp.points
-            } for wp in weekly_progress
-        ]
+        "achievements": achievements
     }
 
 @router.post("/parse-hebrew")

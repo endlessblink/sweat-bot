@@ -173,7 +173,13 @@ export class OpenAIProvider {
       function: {
         name: tool.name,
         description: tool.description,
-        parameters: {
+        parameters: tool.parameters?.type === 'object' ? {
+          // If tool.parameters is already a schema object with {type, properties, required}
+          type: 'object' as const,
+          properties: tool.parameters.properties || {},
+          required: tool.parameters.required || []
+        } : {
+          // Otherwise treat tool.parameters as the properties object directly
           type: 'object' as const,
           properties: tool.parameters || {},
           required: tool.required || []

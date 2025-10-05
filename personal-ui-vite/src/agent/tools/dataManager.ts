@@ -44,37 +44,41 @@ export const dataManagerTool = {
       
       switch (params.action) {
         case 'reset_points':
-          endpoint = '/api/v1/exercises/reset-points';
+          endpoint = '/exercises/reset-points';
           method = 'POST';
           body = { period: params.time_period || 'all' };
           break;
-          
+
         case 'clear_exercises':
-          endpoint = '/api/v1/exercises/clear';
+          endpoint = '/exercises/clear';
           method = 'DELETE';
           body = { period: params.time_period || 'all' };
           break;
-          
+
         case 'clear_all':
-          endpoint = '/api/v1/exercises/clear-all';
+          endpoint = '/exercises/clear-all';
           method = 'DELETE';
           break;
-          
+
         case 'export':
-          endpoint = '/api/v1/exercises/export';
+          endpoint = '/exercises/export';
           method = 'GET';
           break;
-          
+
         case 'backup':
-          endpoint = '/api/v1/exercises/backup';
+          endpoint = '/exercises/backup';
           method = 'POST';
           break;
       }
       
+      // Get authentication token
+      const token = localStorage.getItem('guestToken') || 'default-guest-token';
+
       const response = await fetch(`http://localhost:8000${endpoint}`, {
         method,
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: method !== 'GET' ? JSON.stringify(body) : undefined
       });

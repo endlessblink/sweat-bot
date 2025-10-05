@@ -312,7 +312,7 @@ export default function SweatBotChat() {
                   <button
                     key={index}
                     onClick={() => setShowStatsPanel(true)}
-                    className="inline-block px-3 py-1 mt-2 bg-white text-black rounded hover:bg-neutral-200 transition-colors text-sm font-medium"
+                    className="inline-block px-3 py-1 mt-2 bg-neutral-800 text-white border border-neutral-700 rounded hover:bg-neutral-700 transition-colors text-sm font-medium"
                   >
                     📊 {part}
                   </button>

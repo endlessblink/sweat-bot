@@ -12,14 +12,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Create async engine
+# Ensure asyncpg driver is used, but don't double-replace if already present
+database_url = settings.DATABASE_URL
+if not database_url.startswith("postgresql+asyncpg://"):
+    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+
 engine = create_async_engine(
-    settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
+    database_url,
     echo=settings.DEBUG,
     future=True,
     pool_size=settings.get_db_settings()["pool_size"],
     max_overflow=settings.get_db_settings()["max_overflow"],
     pool_pre_ping=settings.get_db_settings()["pool_pre_ping"],
     pool_recycle=settings.get_db_settings()["pool_recycle"],
+    connect_args={"server_settings": {"jit": "off"}}  # Disable JIT for compatibility
 )
 
 # Create async session factory
