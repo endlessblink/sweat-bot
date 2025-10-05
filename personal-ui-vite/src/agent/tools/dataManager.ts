@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod';
+import { getOrCreateGuestToken } from '../../utils/auth';
 
 const dataManagerSchema = z.object({
   action: z.enum(['reset_points', 'clear_exercises', 'clear_all', 'export', 'backup'])
@@ -71,10 +72,11 @@ export const dataManagerTool = {
           break;
       }
       
-      // Get authentication token
-      const token = localStorage.getItem('guestToken') || 'default-guest-token';
+      // Get valid authentication token (same as exerciseLogger)
+      const token = await getOrCreateGuestToken();
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
+      const response = await fetch(`${backendUrl}${endpoint}`, {
         method,
         headers: {
           'Content-Type': 'application/json',

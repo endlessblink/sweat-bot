@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { getOrCreateGuestToken } from '../../utils/auth';
 
 interface Exercise {
   id: number;
@@ -29,11 +30,12 @@ export default function StatsPanel({ onClose }: { onClose?: () => void }) {
 
   const fetchStats = async () => {
     try {
-      // Get authentication token
-      const token = localStorage.getItem('guestToken') || 'default-guest-token';
+      // Get valid authentication token (same as exerciseLogger)
+      const token = await getOrCreateGuestToken();
 
       // Fetch real statistics from backend
-      const response = await fetch('http://localhost:8000/exercises/statistics', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/exercises/statistics`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -42,7 +44,19 @@ export default function StatsPanel({ onClose }: { onClose?: () => void }) {
 
       if (response.ok) {
         const data = await response.json();
-        setStats(data);
+        console.log('Statistics data received:', data);
+
+        // Ensure data has expected structure
+        const normalizedData: Stats = {
+          total_points: data.total_points || 0,
+          weekly_points: data.weekly_points || 0,
+          monthly_points: data.monthly_points || 0,
+          total_exercises: data.total_exercises || 0,
+          recent_exercises: data.recent_exercises || [],
+          achievements: data.achievements || []
+        };
+
+        setStats(normalizedData);
       } else {
         const errorText = await response.text();
         console.error('Failed to fetch statistics:', response.status, errorText);
