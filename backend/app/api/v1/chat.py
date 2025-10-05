@@ -10,6 +10,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import logging
 import uuid
+import os
 
 from app.core.database import get_db
 from app.models.models import User
@@ -449,58 +450,68 @@ async def _store_conversation(
     exercise_info: Optional[Dict[str, Any]],
     db: AsyncSession
 ):
-    """Store conversation in memory system"""
+    """Store conversation in MongoDB"""
     try:
-        # Create memory content for this conversation
-        memory_content = f"""# SweatBot Conversation - {datetime.utcnow().isoformat()}
+        from motor.motor_asyncio import AsyncIOMotorClient
 
-**User ID**: {user_id}
-**Session ID**: {session_id}
-**Model Used**: {model_used}
+        # MongoDB connection
+        MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://sweatbot:secure_password@localhost:8002/")
+        MONGODB_DATABASE = os.getenv("MONGODB_DATABASE", "sweatbot_conversations")
 
-## User Message:
-{user_message}
+        mongo_client = AsyncIOMotorClient(MONGODB_URL)
+        mongo_db = mongo_client[MONGODB_DATABASE]
+        conversations_collection = mongo_db["conversations"]
 
-## AI Response:
-{ai_response}
-"""
-        
-        if exercise_info:
-            memory_content += f"""
-## Exercise Detected:
-- **Keywords**: {exercise_info.get('keywords', [])}
-- **Points Earned**: {exercise_info.get('points', 0)}
-- **Source**: {exercise_info.get('source', 'unknown')}
-"""
-        
-        # Store using MCP memory system (would need to integrate with Claude Code's MCP)
-        # For now, store locally or in a simple file
-        memory_data = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "user_id": user_id,
-            "session_id": session_id,
-            "user_message": user_message,
-            "ai_response": ai_response,
+        # Create message objects
+        timestamp = datetime.utcnow()
+        user_msg = {
+            "role": "user",
+            "content": user_message,
+            "timestamp": timestamp
+        }
+        assistant_msg = {
+            "role": "assistant",
+            "content": ai_response,
+            "timestamp": timestamp,
             "model_used": model_used,
             "exercise_info": exercise_info
         }
-        
-        # Simple file-based storage for now
-        import json
-        import os
-        
-        memory_dir = "memories/sweatbot"
-        os.makedirs(memory_dir, exist_ok=True)
-        
-        memory_filename = f"{memory_dir}/conversation_{session_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
-        
-        with open(memory_filename, 'w', encoding='utf-8') as f:
-            json.dump(memory_data, f, ensure_ascii=False, indent=2)
-        
-        logger.info(f"Stored conversation memory: {memory_filename}")
-        
+
+        # Find existing session or create new one
+        existing_session = await conversations_collection.find_one(
+            {"session_id": session_id, "user_id": user_id}
+        )
+
+        if existing_session:
+            # Append messages to existing session
+            await conversations_collection.update_one(
+                {"_id": existing_session["_id"]},
+                {
+                    "$push": {"messages": {"$each": [user_msg, assistant_msg]}},
+                    "$set": {"updated_at": timestamp}
+                }
+            )
+            logger.info(f"Updated conversation session: {session_id}")
+        else:
+            # Create new conversation session
+            await conversations_collection.insert_one({
+                "session_id": session_id,
+                "user_id": user_id,
+                "messages": [user_msg, assistant_msg],
+                "created_at": timestamp,
+                "updated_at": timestamp,
+                "metadata": {
+                    "model_used": model_used,
+                    "has_exercises": bool(exercise_info)
+                }
+            })
+            logger.info(f"Created new conversation session: {session_id}")
+
+        # Close MongoDB connection
+        mongo_client.close()
+
     except Exception as e:
-        logger.error(f"Error storing conversation in memory: {e}")
+        logger.error(f"Error storing conversation in MongoDB: {e}")
         # Don't fail the request if memory storage fails
         pass
 
