@@ -7,6 +7,7 @@ import StatsChart from './ui/StatsChart';
 import WorkoutCard from './ui/WorkoutCard';
 import WorkoutDetails from './ui/WorkoutDetails';
 import StatsPanel from './ui/StatsPanel';
+import ChatHistorySidebar from './ui/ChatHistorySidebar';
 import { getSweatBotAgent } from '../agent';
 
 /**
@@ -44,8 +45,15 @@ export default function SweatBotChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showStatsPanel, setShowStatsPanel] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [currentSessionId] = useState(() => `session_${Date.now()}`);
   const [agent] = useState(() => getSweatBotAgent({ userId: 'personal' }));
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleLoadSession = async (sessionId: string) => {
+    // TODO: Load conversation from backend and populate messages
+    console.log('Loading session:', sessionId);
+  };
 
   // Typing indicator component
   const TypingIndicator = () => (
@@ -356,22 +364,35 @@ export default function SweatBotChat() {
         </div>
       )}
       
-      <div className="flex flex-col h-[600px] w-full bg-black border border-neutral-800 rounded-lg overflow-hidden">
+      <div className="flex h-[600px] w-full bg-black border border-neutral-800 rounded-lg overflow-hidden">
 
-      {/* Header with Statistics Button */}
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+
+      {/* Header with Statistics and History Buttons */}
       <div className="flex justify-between items-center px-4 py-3 border-b border-neutral-800 bg-neutral-950">
         <div>
           <h2 className="text-lg font-bold text-white">SweatBot</h2>
           <p className="text-xs text-neutral-500">המאמן הכושר הדיגיטלי שלך</p>
         </div>
-        <button
-          onClick={() => setShowStatsPanel(true)}
-          className="px-3 py-2 bg-neutral-800 text-white border border-neutral-700 rounded hover:bg-neutral-700 transition-colors text-sm font-medium flex items-center gap-2"
-          title="הצג סטטיסטיקות"
-        >
-          <span>📊</span>
-          <span className="hidden sm:inline">סטטיסטיקות</span>
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="px-3 py-2 bg-neutral-800 text-white border border-neutral-700 rounded hover:bg-neutral-700 transition-colors text-sm font-medium flex items-center gap-2"
+            title="היסטוריית שיחות"
+          >
+            <span>📜</span>
+            <span className="hidden sm:inline">היסטוריה</span>
+          </button>
+          <button
+            onClick={() => setShowStatsPanel(true)}
+            className="px-3 py-2 bg-neutral-800 text-white border border-neutral-700 rounded hover:bg-neutral-700 transition-colors text-sm font-medium flex items-center gap-2"
+            title="הצג סטטיסטיקות"
+          >
+            <span>📊</span>
+            <span className="hidden sm:inline">סטטיסטיקות</span>
+          </button>
+        </div>
       </div>
 
       {/* Messages Area */}
@@ -435,6 +456,15 @@ export default function SweatBotChat() {
           </button>
         </div>
       </div>
+      </div>
+
+      {/* Chat History Sidebar */}
+      {showHistory && (
+        <ChatHistorySidebar
+          onLoadSession={handleLoadSession}
+          currentSessionId={currentSessionId}
+        />
+      )}
     </div>
     </>
   );
