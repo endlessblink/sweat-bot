@@ -8,7 +8,6 @@ export { statsRetrieverTool } from './statsRetriever';
 export { dataManagerTool } from './dataManager';
 export { goalSetterTool } from './goalSetter';
 export { progressAnalyzerTool } from './progressAnalyzer';
-export { workoutSuggesterTool } from './workoutSuggester';
 
 // Export as array for easy agent initialization
 export const allTools = [
@@ -16,6 +15,5 @@ export const allTools = [
   statsRetrieverTool,
   dataManagerTool,
   goalSetterTool,
-  progressAnalyzerTool,
-  workoutSuggesterTool
+  progressAnalyzerTool
 ];

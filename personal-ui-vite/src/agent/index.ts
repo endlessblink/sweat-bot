@@ -22,6 +22,7 @@ interface ConversationState {
   waitingForExerciseDetails: boolean;
   lastUserIntent: 'exercise_update' | 'stats' | 'workout' | 'general' | null;
   lastPromptedFor: string | null;
+  lastQuickWorkoutResponse: string | null;
 }
 
 export class SweatBotAgent {
@@ -31,7 +32,8 @@ export class SweatBotAgent {
   private conversationState: ConversationState = {
     waitingForExerciseDetails: false,
     lastUserIntent: null,
-    lastPromptedFor: null
+    lastPromptedFor: null,
+    lastQuickWorkoutResponse: null
   };
   
   constructor(config: SweatBotConfig = {}) {
@@ -138,6 +140,9 @@ export class SweatBotAgent {
 1. **וריאציה מוחלטת**: לעולם אל תחזור על אותה תשובה! כל תגובה חייבת להיות ייחודית.
 2. **עברית חיה**: דבר כמו חבר אמיתי, לא כמו רובוט. שפה יומיומית וטבעית.
 3. **קצר וקולע**: תשובות ממוקדות, לא הרצאות.
+4. **גיוון חכם**: בזמן שמציעים אימון קצר (לדוגמה "5 דקות" או "הפסקה"), בחר תרגילים פשוטים שדורשים אפס ציוד (סקוואטים, ג'אמפינג ג'קס, פלנק, מתיחות). אל תכלול טיפוס חבל או תרגילים מסוכנים אלא אם המשתמש ביקש מפורשות.
+5. **רנדומיזציה קלה**: שלב תרגילים בסדר שונה בכל פעם והחלף לפחות תרגיל אחד בין תשובות דומות. אם אין רעיון, בחר רנדומלית מתוך מאגר תרגילים קצר של משקל גוף.
+6. **חזרות ומשכי זמן**: לכל תרגיל קצר חייב להיות מספר חזרות או משך (לדוגמה "20 חזרות" או "40 שניות").
 
 🎯 **כלל חשוב לרישום תרגילים**:
 כשמשתמש נותן פרטי תרגיל - הפעל את exerciseLogger מיד! אל תשאל שאלות מיוטרות!
@@ -162,10 +167,10 @@ export class SweatBotAgent {
 כלים - הפעל אוטומטית בהתאם לתוכן:
 - exerciseLogger: כשמשתמש מזכיר תרגיל עם מספרים - הפעל מיד!
 - statsRetriever: כשמשתמש שואל על נקודות או התקדמות
-- workoutSuggester: כשמשתמש מבקש הצעת אימון
 - goalSetter: כשמשתמש רוצה להגדיר יעד
 - progressAnalyzer: כשמשתמש שואל על מגמות
 - dataManager: כשמשתמש רוצה לאפס או לנהל נתונים
+- רעיונות לאימון קצר (למשל "5 דקות", "הפסקה"): אל תפעיל כלי. תן הצעה מגוונת מהירה שמורכבת מתרגילי משקל גוף פשוטים וללא ציוד.
 
 זכור: אתה מאמן כושר חכם שמבין עברית מצוין - תבין מהקונטקסט ופעל בהתאם! 🏃‍♂️`;
   }
@@ -175,11 +180,21 @@ export class SweatBotAgent {
     const cleanMessage = this.sanitizeInput(message);
 
     try {
+      const isQuickBreakRequest = this.isQuickBreakRequest(cleanMessage);
+      let enrichedMessage = cleanMessage;
+
+      if (isQuickBreakRequest) {
+        const variationSeed = Math.random().toString(36).slice(2, 8);
+        enrichedMessage += `\n\nהנחיות הפקה: עליך להציע אימון קצר (5 דקות או פחות) המורכב מתרגילי משקל גוף פשוטים בלבד. כל תרגיל חייב לכלול מספר חזרות או משך זמן. אל תחזור על אותו צירוף תרגילים, הימנע מטיפוס חבל ותרגילים עם ציוד אם לא ביקשו זאת. seed=${variationSeed}`;
+        if (this.conversationState.lastQuickWorkoutResponse) {
+          enrichedMessage += `\n\nהצעות קודמות שיש להימנע מהן: ${this.conversationState.lastQuickWorkoutResponse}`;
+        }
+      }
       
       // Add conversation context to the message
       const context = this.conversationHistory.length > 0 
-        ? `השיחה הקודמת:\n${this.conversationHistory.slice(-5).map(m => `${m.role}: ${m.content}`).join('\n')}\n\nהודעה חדשה: ${cleanMessage}`
-        : cleanMessage;
+        ? `השיחה הקודמת:\n${this.conversationHistory.slice(-5).map(m => `${m.role}: ${m.content}`).join('\n')}\n\nהודעה חדשה: ${enrichedMessage}`
+        : enrichedMessage;
       
       // Call the agent with context
       console.log('SweatBotAgent: Calling VoltAgent...');
@@ -235,6 +250,10 @@ export class SweatBotAgent {
       this.conversationHistory.push({role: 'user', content: cleanMessage});
       this.conversationHistory.push({role: 'assistant', content: finalResponse});
       
+      if (isQuickBreakRequest) {
+        this.conversationState.lastQuickWorkoutResponse = finalResponse;
+      }
+      
       console.log('Final response to return:', finalResponse);
       
       // CRITICAL: Log exactly what we're about to return
@@ -281,6 +300,12 @@ export class SweatBotAgent {
     
     // Remove control characters EXCEPT newlines (\n = 0x0A, \r = 0x0D)
     return output.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
+  }
+
+  private isQuickBreakRequest(message: string): boolean {
+    const normalized = message.toLowerCase();
+    const keywords = ['5 דקות', 'חמש דקות', 'הפסקה', 'break', 'מיקרו אימון', 'אימון קצר'];
+    return keywords.some(keyword => normalized.includes(keyword));
   }
   
   async *chatStream(message: string) {
@@ -333,9 +358,6 @@ export class SweatBotAgent {
       
       case 'statsRetriever':
         return 'מביא את הסטטיסטיקות שלך...';
-      
-      case 'workoutSuggester':
-        return 'מכין הצעת אימון מותאמת אישית...';
       
       case 'goalSetter':
         return 'מגדיר את היעד החדש שלך...';
@@ -498,14 +520,14 @@ export class SweatBotAgent {
             }
 
             const data = await response.json();
-            const total = data.total_stats;
+            const total = data.total_stats ?? data;
 
             let result = `📊 **הסטטיסטיקות שלך:**\n\n`;
-            result += `🎯 סה"כ נקודות: ${total.total_points || 0}\n\n`;
+            result += `🎯 סה"כ נקודות: ${(total.total_points ?? total.weekly_points ?? total.monthly_points ?? 0)}\n\n`;
             result += `💪 סה"כ תרגילים: ${total.total_exercises || 0}\n\n`;
             result += `🔁 סה"כ חזרות: ${total.total_reps || 0}\n\n`;
 
-            if (total.total_weight_kg > 0) {
+            if ((total.total_weight_kg || 0) > 0) {
               result += `🏋️ סה"כ משקל: ${Math.round(total.total_weight_kg)} ק"ג\n\n`;
             }
 
@@ -516,7 +538,7 @@ export class SweatBotAgent {
               });
             }
 
-            return result;
+            return `${result}\n[ראה סטטיסטיקות]`;
           } catch (error) {
             console.error('Stats retrieval error:', error);
             return 'לא הצלחתי לטעון את הסטטיסטיקות. ודא שהשרת פועל.';
@@ -576,21 +598,6 @@ export class SweatBotAgent {
             console.error('Workout history error:', error);
             return 'לא הצלחתי לטעון את היסטוריית האימונים.';
           }
-        }
-      },
-      {
-        name: 'workoutSuggester',
-        description: 'הצעת אימון מותאם אישית על בסיס היסטוריית האימונים',
-        parameters: {
-          type: 'object',
-          properties: {
-            muscleGroup: { type: 'string', description: 'קבוצת שרירים' },
-            duration: { type: 'number', description: 'זמן בדקות' }
-          }
-        },
-        execute: async (params: any) => {
-          // AI provides personalized suggestions based on conversation
-          return `בואו נתכנן אימון! על סמך מה שראיתי, אני ממליץ על אימון מאוזן. מה תרצה להתמקד בו היום?`;
         }
       },
       {
