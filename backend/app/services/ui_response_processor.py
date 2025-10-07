@@ -44,12 +44,12 @@ class UIResponseProcessor:
                 r'איך אוכל לעזור',
                 r'מה נעשה היום'
             ],
-            'workout_suggester': [
-                r'הצעת אימון',
-                r'מומלץ.*תרגילים',
-                r'נתחיל עם.*אימון',
-                r'בוא נעשה.*אימון'
-            ]
+            # 'workout_suggester': [
+            #     r'הצעת אימון',
+            #     r'מומלץ.*תרגילים',
+            #     r'נתחיל עם.*אימון',
+            #     r'בוא נעשה.*אימון'
+            # ]
         }
         
         # Find which tool was likely used
@@ -184,43 +184,10 @@ class UIResponseProcessor:
     
     @staticmethod
     def create_workout_suggestion_component(agent_response: str) -> Dict[str, Any]:
-        """Create workout suggestion component"""
-        
-        # Extract suggested workout from response
-        suggestion_patterns = [
-            r'מומלץ.*?(\d+).*?(סקוואטים|שכיבות|דחיפות)',
-            r'בוא נעשה.*?(\d+).*?(תרגילים|חזרות)',
-            r'נתחיל עם.*?(\d+).*?(דקות|פעמים)'
-        ]
-        
-        suggested_exercises = []
-        for pattern in suggestion_patterns:
-            matches = re.findall(pattern, agent_response)
-            for match in matches:
-                count, exercise_type = match
-                suggested_exercises.append({
-                    'name': exercise_type,
-                    'reps': int(count),
-                    'sets': 3
-                })
-        
-        # Default workout if no specific suggestions found
-        if not suggested_exercises:
-            suggested_exercises = [
-                {'name': 'סקוואטים', 'reps': 15, 'sets': 3},
-                {'name': 'שכיבות סמך', 'reps': 10, 'sets': 3},
-                {'name': 'פלאנק', 'reps': 30, 'sets': 1, 'type': 'seconds'}
-            ]
-        
-        return {
-            'type': 'workout-card',
-            'data': {
-                'workout_name': 'אימון מומלץ',
-                'exercises': suggested_exercises,
-                'estimated_duration': '15-20 דקות',
-                'difficulty': 'בינוני',
-                'target_muscles': ['רגליים', 'גוף עליון', 'ליבה']
-            }
+        """Create workout suggestion component - DEPRECATED - AI should provide suggestions naturally"""
+        # This method is deprecated - the AI should provide workout suggestions naturally
+        # without hardcoded UI component generation
+        return None
         }
     
     @classmethod
@@ -258,9 +225,7 @@ class UIResponseProcessor:
         )
         
         should_show_workout_suggestion = (
-            tool_called == 'workout_suggester' or
-            any(keyword in user_message.lower() for keyword in ['הצע', 'מה לעשות היום', 'אימון']) or
-            'מומלץ' in agent_response
+            tool_called == 'workout_suggester'
         )
         
         # Generate appropriate UI components
@@ -273,8 +238,9 @@ class UIResponseProcessor:
         if should_show_quick_actions:
             ui_components.append(cls.create_quick_actions_component())
         
-        if should_show_workout_suggestion:
-            ui_components.append(cls.create_workout_suggestion_component(agent_response))
+        # Workout suggestions should come naturally from AI responses, not auto-generated
+        # if should_show_workout_suggestion:
+        #     ui_components.append(cls.create_workout_suggestion_component(agent_response))
         
         logger.info(f"Generated {len(ui_components)} UI components for response")
         
