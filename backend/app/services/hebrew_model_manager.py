@@ -49,13 +49,19 @@ class HebrewModelManager:
             self.available_models = {
                 "gemini-1.5-flash": {
                     "type": "api",
-                    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent",
+                    # Gemini v1beta requires explicit model names without the "-latest" suffix
+                    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
                     "api_key_env": "GEMINI_API_KEY"
                 },
                 "gemini-1.5-pro": {
                     "type": "api", 
-                    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent",
+                    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
                     "api_key_env": "GEMINI_API_KEY"
+                },
+                "openai-gpt-4o-mini": {
+                    "type": "openai",
+                    "model_name": "gpt-4o-mini",
+                    "api_key_env": "OPENAI_API_KEY"
                 },
                 "bjoernb/gemma3n-e2b:latest": {
                     "type": "ollama",
@@ -215,13 +221,15 @@ class HebrewModelManager:
         """
         try:
             if model not in self.available_models:
-                logger.warning(f"Unknown model: {model}, falling back to gemini-1.5-flash")
-                model = "gemini-1.5-flash"
+                logger.warning(f"Unknown model: {model}, falling back to openai-gpt-4o-mini")
+                model = "openai-gpt-4o-mini"
             
             model_config = self.available_models[model]
             
             if model_config["type"] == "api":
                 return await self._call_gemini_api(message, model, model_config, context)
+            elif model_config["type"] == "openai":
+                return await self._call_openai_api(message, model, model_config, context)
             elif model_config["type"] == "ollama":
                 return await self._call_ollama_api(message, model, model_config, context)
             else:
@@ -269,8 +277,9 @@ class HebrewModelManager:
             }
             
             url = f"{config['endpoint']}?key={api_key}"
-            
+
             async with httpx.AsyncClient(timeout=30.0) as client:
+                logger.debug(f"Calling Gemini endpoint: {url}")
                 response = await client.post(url, json=payload, headers=headers)
                 
                 if response.status_code == 200:
@@ -299,7 +308,73 @@ class HebrewModelManager:
         except Exception as e:
             logger.error(f"Gemini API call error: {e}")
             return None
-    
+
+    async def _call_openai_api(
+        self,
+        message: str,
+        model: str,
+        config: Dict[str, Any],
+        context: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Call OpenAI API for chat response"""
+        try:
+            api_key = os.getenv(config["api_key_env"])
+            if not api_key:
+                logger.error(f"API key not found for {config['api_key_env']}")
+                return None
+
+            system_prompt = await self._build_system_prompt(context)
+            payload = {
+                "model": config["model_name"],
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": message}
+                ],
+                "temperature": 0.7,
+                "top_p": 0.9
+            }
+
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
+
+                if response.status_code == 200:
+                    data = response.json()
+                    choices = data.get("choices", [])
+                    if not choices:
+                        logger.error("OpenAI response missing choices")
+                        return None
+
+                    response_text = choices[0].get("message", {}).get("content", "")
+                    logger.info(f"📥 OpenAI response preview: {response_text[:100]}...")
+
+                    filtered_response = await hebrew_filter.filter_response(response_text, context)
+
+                    logprobs = choices[0].get("logprobs")
+                    confidence = None
+                    if isinstance(logprobs, dict):
+                        content_logprobs = logprobs.get("content") or []
+                        if content_logprobs and isinstance(content_logprobs[0], dict):
+                            confidence = content_logprobs[0].get("logprob")
+
+                    return {
+                        "response": filtered_response,
+                        "model_used": model,
+                        "confidence": confidence,
+                        "exercise_detected": self._detect_exercise_in_response(message, filtered_response)
+                    }
+
+                logger.error(f"OpenAI API error: {response.status_code} - {response.text}")
+                return None
+
+        except Exception as e:
+            logger.error(f"OpenAI API call error: {e}")
+            return None
+
     async def _call_ollama_api(
         self, 
         message: str, 
@@ -375,25 +450,26 @@ class HebrewModelManager:
 6. 🚨 אל תשאל שאלות מיותרות - פשוט תאשר ותעודד!
 
 התנהגות מיוחדת לתרגילים:
-⚡ כשמישהו אומר "עשיתי X תרגילים" - פשוט תעודד ותאשר
-⚡ אל תשאל על קבוצות שרירים, קושי, או ציוד
-⚡ אל תבקש פרטים נוספים - המשתמש רק רוצה לתעד
-⚡ תן תגובה קצרה ומעודדת עם אמוג'י אחד
+⚡ כשמישהו אומר "עשיתי X תרגילים" - פשוט תעודד ותאשר (תגובה קצרה של 1-2 משפטים)
+⚡ כשמישהו מבקש תרגילים להפסקה או אימון - תן מגוון רחב של תרגילים שונים (תגובה מפורטת מותרת)
+⚡ אל תשאל על קבוצות שרירים, קושי, או ציוד כשהמשתמש רק רוצה לתעד
+⚡ להצעות אימון - תשתמש במגוון רחב: לאנג'ים, דדליפט, פולאובר, מתח, משיכות, קפיצות, ריצות, פלאנקים, כפיפות בטן, טלטלים, ספרינטים, הליכה מהירה, שחייה, אופניים, מתיחות דינמיות, ועוד
 
 יכולות שלך:
 💪 מעקב אחרי תרגילים ואימונים
 🥗 עצות תזונה מותאמות אישית  
 🎯 מוטיבציה ועידוד חכם
-📊 חישוב נקודות והישגים
+📊 חישוב נקודות והשגים
 🎤 זיהוי פקודות קול בעברית
 📈 מעקב התקדמות אישית
+🏋️‍♂️ ידע נרחב במאות תרגילים שונים
 
 סגנון התגובה הנדרש:
 ✓ עברית נקייה בלבד - ללא מילה באנגלית
-✓ 1-2 משפטים מקסימום
-✓ מעודד ומעשי
-✓ עם אמוג'י רלוונטי אחד
-✓ ישיר וקצר לעניין
+✓ לתיעוד תרגילים: 1-2 משפטים מקסימום עם אמוג'י אחד
+✓ להצעות אימון: תגובות מפורטות עם מגוון תרגילים מותרות ורצויות
+✓ מעודד ומעשי תמיד
+✓ ישיר וקצר לעניין (חוץ מהצעות אימון)
 ✓ אל תשאל שאלות אלא אם המשתמש מבקש עזרה
 
 דוגמאות לתגובות מושלמות לתרגילים:
