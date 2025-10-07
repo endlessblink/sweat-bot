@@ -40,19 +40,168 @@ interface Message {
   isLoading?: boolean;
 }
 
-export default function SweatBotChat() {
+interface SweatBotChatProps {
+  sessionToLoad?: string | null;
+  hideHeader?: boolean; // Hide header when embedded in ChatLayout
+  onRegisterClearChat?: (clearFn: () => void) => void; // Register clear function with parent
+  statsPanelControl?: {
+    isOpen: boolean;
+    setIsOpen: (open: boolean) => void;
+  };
+  historyPanelControl?: {
+    isOpen: boolean;
+    setIsOpen: (open: boolean) => void;
+  };
+}
+
+export default function SweatBotChat({
+  sessionToLoad,
+  hideHeader = false,
+  onRegisterClearChat,
+  statsPanelControl,
+  historyPanelControl
+}: SweatBotChatProps = {}) {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showStatsPanel, setShowStatsPanel] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  const [internalStatsPanel, setInternalStatsPanel] = useState(false);
+  const [internalHistoryPanel, setInternalHistoryPanel] = useState(false);
+  const showStatsPanel = statsPanelControl ? statsPanelControl.isOpen : internalStatsPanel;
+  const setShowStatsPanel = statsPanelControl ? statsPanelControl.setIsOpen : setInternalStatsPanel;
+  const showHistory = historyPanelControl ? historyPanelControl.isOpen : internalHistoryPanel;
+  const setShowHistory = historyPanelControl ? historyPanelControl.setIsOpen : setInternalHistoryPanel;
   const [currentSessionId] = useState(() => `session_${Date.now()}`);
   const [agent] = useState(() => getSweatBotAgent({ userId: 'personal' }));
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Register clear function with parent (only once on mount)
+  useEffect(() => {
+    if (onRegisterClearChat) {
+      onRegisterClearChat(() => {
+        console.log('[SweatBotChat] Clearing chat messages');
+        setMessages([]);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
+  // Load session when sessionToLoad prop changes
+  useEffect(() => {
+    console.log('[SweatBotChat] useEffect triggered, sessionToLoad:', sessionToLoad);
+    if (sessionToLoad) {
+      console.log('[SweatBotChat] Calling handleLoadSession with:', sessionToLoad);
+      handleLoadSession(sessionToLoad);
+    }
+  }, [sessionToLoad]);
+
+  // Helper function to store messages in MongoDB
+  const storeMessage = async (role: 'user' | 'assistant', content: string) => {
+    try {
+      console.log('[storeMessage] ENTRY - role:', role, 'content length:', content.length);
+
+      const authModule = await import('../utils/auth');
+      const token = await authModule.getOrCreateGuestToken();
+      const userId = authModule.getUserId();
+
+      console.log('[storeMessage] Auth - userId:', userId, 'token:', token ? 'exists' : 'missing');
+
+      if (!userId) {
+        console.warn('[storeMessage] ❌ No user ID available, skipping message storage');
+        return;
+      }
+
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const url = `${backendUrl}/api/memory/message`;
+
+      console.log('[storeMessage] Fetching:', url);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: userId,
+          sessionId: currentSessionId,  // Send current session ID to backend
+          message: {
+            role,
+            content,
+            timestamp: new Date().toISOString()
+          }
+        })
+      });
+
+      console.log('[storeMessage] Sent with sessionId:', currentSessionId);
+
+      console.log('[storeMessage] Response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[storeMessage] ❌ Failed - status:', response.status, 'error:', errorText);
+      } else {
+        const result = await response.json();
+        console.log('[storeMessage] ✅ Success:', result);
+      }
+    } catch (error) {
+      console.error('[storeMessage] ❌ Exception:', error);
+    }
+  };
 
   const handleLoadSession = async (sessionId: string) => {
-    // TODO: Load conversation from backend and populate messages
-    console.log('Loading session:', sessionId);
+    try {
+      console.log('[handleLoadSession] Loading session:', sessionId);
+      setIsLoading(true);
+
+      const authModule = await import('../utils/auth');
+      const token = await authModule.getOrCreateGuestToken();
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
+      const response = await fetch(`${backendUrl}/api/memory/session/${sessionId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load session: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[handleLoadSession] Loaded', data.messages?.length || 0, 'messages');
+
+      // Transform backend messages to frontend Message format
+      const loadedMessages: Message[] = (data.messages || []).map((msg: any) => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        type: msg.role === 'user' ? 'text' as const : 'markdown' as const,
+        agent: msg.role === 'assistant' ? 'personal' as const : undefined,
+        timestamp: new Date(msg.timestamp || Date.now())
+      }));
+
+      setMessages(loadedMessages);
+      setShowHistory(false);
+      console.log(`✅ Loaded ${loadedMessages.length} messages from session:`, sessionId);
+    } catch (error) {
+      console.error('[handleLoadSession] Error:', error);
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: 'שגיאה בטעינת היסטוריה. נסה שוב מאוחר יותר.',
+        type: 'markdown',
+        agent: 'personal',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Typing indicator component
@@ -144,7 +293,17 @@ export default function SweatBotChat() {
       };
       
       setMessages(prev => [...prev, assistantMessage]);
-      
+
+      //Store both messages to MongoDB (non-blocking)
+      console.log('[MongoDB] Starting to store user message:', messageText);
+      storeMessage('user', messageText).catch(err =>
+        console.error('[MongoDB] Failed to store user message:', err)
+      );
+      console.log('[MongoDB] Starting to store assistant message:', cleanResponse);
+      storeMessage('assistant', cleanResponse).catch(err =>
+        console.error('[MongoDB] Failed to store assistant message:', err)
+      );
+
       // Refocus input after response
       inputRef.current?.focus();
       
@@ -363,37 +522,51 @@ export default function SweatBotChat() {
           </div>
         </div>
       )}
-      
-      <div className="flex h-[600px] w-full bg-black border border-neutral-800 rounded-lg overflow-hidden">
+
+      {showHistory && hideHeader && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full" style={{ direction: 'rtl' }}>
+            <ChatHistorySidebar
+              onLoadSession={handleLoadSession}
+              currentSessionId={currentSessionId}
+              onClose={() => setShowHistory(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className={`flex w-full bg-black overflow-hidden ${hideHeader ? 'h-full' : 'h-[600px] border border-neutral-800 rounded-lg'}`}>
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
 
-      {/* Header with Statistics and History Buttons */}
-      <div className="flex justify-between items-center px-4 py-3 border-b border-neutral-800 bg-neutral-950">
-        <div>
-          <h2 className="text-lg font-bold text-white">SweatBot</h2>
-          <p className="text-xs text-neutral-500">המאמן הכושר הדיגיטלי שלך</p>
+      {/* Header with Statistics and History Buttons - Only show when not embedded */}
+      {!hideHeader && (
+        <div className="flex justify-between items-center px-4 py-3 border-b border-neutral-800 bg-neutral-950">
+          <div>
+            <h2 className="text-lg font-bold text-white">SweatBot</h2>
+            <p className="text-xs text-neutral-500">המאמן הכושר הדיגיטלי שלך</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="px-3 py-2 bg-neutral-800 text-white border border-neutral-700 rounded hover:bg-neutral-700 transition-colors text-sm font-medium flex items-center gap-2"
+              title="היסטוריית שיחות"
+            >
+              <span>📜</span>
+              <span className="hidden sm:inline">היסטוריה</span>
+            </button>
+            <button
+              onClick={() => setShowStatsPanel(true)}
+              className="px-3 py-2 bg-neutral-800 text-white border border-neutral-700 rounded hover:bg-neutral-700 transition-colors text-sm font-medium flex items-center gap-2"
+              title="הצג סטטיסטיקות"
+            >
+              <span>📊</span>
+              <span className="hidden sm:inline">סטטיסטיקות</span>
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="px-3 py-2 bg-neutral-800 text-white border border-neutral-700 rounded hover:bg-neutral-700 transition-colors text-sm font-medium flex items-center gap-2"
-            title="היסטוריית שיחות"
-          >
-            <span>📜</span>
-            <span className="hidden sm:inline">היסטוריה</span>
-          </button>
-          <button
-            onClick={() => setShowStatsPanel(true)}
-            className="px-3 py-2 bg-neutral-800 text-white border border-neutral-700 rounded hover:bg-neutral-700 transition-colors text-sm font-medium flex items-center gap-2"
-            title="הצג סטטיסטיקות"
-          >
-            <span>📊</span>
-            <span className="hidden sm:inline">סטטיסטיקות</span>
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 p-4 overflow-y-auto">
@@ -424,6 +597,7 @@ export default function SweatBotChat() {
                 </div>
               );
             })}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
@@ -458,11 +632,12 @@ export default function SweatBotChat() {
       </div>
       </div>
 
-      {/* Chat History Sidebar */}
-      {showHistory && (
+      {/* Chat History Sidebar - Only show when not embedded */}
+      {!hideHeader && showHistory && (
         <ChatHistorySidebar
           onLoadSession={handleLoadSession}
           currentSessionId={currentSessionId}
+          onClose={() => setShowHistory(false)}
         />
       )}
     </div>
