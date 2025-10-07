@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Chat from './pages/Chat';
 import VoltTest from './pages/VoltTest';
+import { Login } from './pages/Login';
 
 /**
  * SweatBot App - Vite Version with Volt Agent
@@ -13,6 +14,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Chat />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/volt" element={<VoltTest />} />
       </Routes>
     </Router>

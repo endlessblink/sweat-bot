@@ -9,10 +9,12 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import logging
 
 from app.models.models import User
 from app.api.v1.auth import get_current_user
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # MongoDB connection
@@ -34,6 +36,7 @@ class Message(BaseModel):
 class StoreMessageRequest(BaseModel):
     userId: str
     message: Message
+    sessionId: Optional[str] = None  # Optional session ID from frontend
 
 class ConversationSession(BaseModel):
     session_id: str
@@ -83,36 +86,67 @@ async def store_message(
 ):
     """Store a single message in MongoDB"""
     try:
+        # Log authentication success
+        print(f"========= [MEMORY] Auth successful - user: {current_user.username} (id: {current_user.id}) =========")
+        logger.info(f"[MEMORY] Auth successful - user: {current_user.username} (id: {current_user.id})")
+
         user_id = request.userId
         message = request.message.dict()
+        frontend_session_id = request.sessionId
 
-        # Find or create current session for user
-        existing = await conversations_collection.find_one(
-            {"user_id": user_id},
-            sort=[("updated_at", -1)]
-        )
+        print(f"========= [MEMORY] Storing message for user_id: {user_id}, session_id: {frontend_session_id} =========")
+        print(f"========= [MEMORY] Message content: role={message.get('role')}, content={message.get('content')[:50]} =========")
+        logger.info(f"[MEMORY] Storing message for user_id: {user_id}, session_id: {frontend_session_id}")
+        logger.debug(f"[MEMORY] Message content: role={message.get('role')}, content_length={len(message.get('content', ''))}")
+
+        # If session ID provided, find that specific session
+        if frontend_session_id:
+            logger.debug(f"[MEMORY] Looking for existing session: {frontend_session_id}")
+            existing = await conversations_collection.find_one({
+                "user_id": user_id,
+                "session_id": frontend_session_id
+            })
+        else:
+            logger.debug(f"[MEMORY] No session ID provided, finding most recent session")
+            existing = await conversations_collection.find_one(
+                {"user_id": user_id},
+                sort=[("updated_at", -1)]
+            )
 
         if existing:
             # Append to existing session
-            await conversations_collection.update_one(
+            logger.info(f"[MEMORY] Appending to existing session: {existing.get('session_id')}")
+            result = await conversations_collection.update_one(
                 {"_id": existing["_id"]},
                 {
                     "$push": {"messages": message},
                     "$set": {"updated_at": datetime.utcnow()}
                 }
             )
+            logger.debug(f"[MEMORY] Update result: matched={result.matched_count}, modified={result.modified_count}")
             session_id = existing["session_id"]
         else:
-            # Create new session
-            session_id = f"session_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-            await conversations_collection.insert_one({
+            # Create new session with provided ID or generate one
+            session_id = frontend_session_id or f"session_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+            print(f"========= [MEMORY] Creating new session: {session_id} =========")
+            logger.info(f"[MEMORY] Creating new session: {session_id}")
+
+            doc_to_insert = {
                 "session_id": session_id,
                 "user_id": user_id,
                 "messages": [message],
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
                 "metadata": {}
-            })
+            }
+            print(f"========= [MEMORY] About to insert document: {doc_to_insert} =========")
+
+            insert_result = await conversations_collection.insert_one(doc_to_insert)
+            print(f"========= [MEMORY] Insert result: inserted_id={insert_result.inserted_id} =========")
+            logger.debug(f"[MEMORY] Insert result: inserted_id={insert_result.inserted_id}")
+
+        print(f"========= [MEMORY] ✅ Message stored successfully in session: {session_id} =========")
+        logger.info(f"[MEMORY] ✅ Message stored successfully in session: {session_id}")
 
         return {
             "success": True,
@@ -120,7 +154,12 @@ async def store_message(
             "message": "Message stored successfully"
         }
 
+    except HTTPException:
+        # Re-raise HTTP exceptions (like auth failures)
+        logger.error(f"[MEMORY] ❌ HTTP Exception in store_message")
+        raise
     except Exception as e:
+        logger.error(f"[MEMORY] ❌ Failed to store message: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to store message: {str(e)}"
@@ -237,12 +276,26 @@ async def list_user_sessions(
     """List all conversation sessions for current user"""
     try:
         user_id = str(current_user.id)
+        logger.info(f"[MEMORY] Listing sessions for user: {current_user.username} (id: {user_id})")
 
-        cursor = conversations_collection.find(
-            {"user_id": user_id}
-        ).sort("updated_at", -1).limit(limit)
+        # Use aggregation pipeline to deduplicate by session_id (keep latest)
+        pipeline = [
+            {"$match": {"user_id": user_id}},
+            {"$sort": {"updated_at": -1}},
+            {"$group": {
+                "_id": "$session_id",  # Group by session_id to deduplicate
+                "session_id": {"$first": "$session_id"},
+                "created_at": {"$first": "$created_at"},
+                "updated_at": {"$first": "$updated_at"},
+                "messages": {"$first": "$messages"},
+                "metadata": {"$first": "$metadata"}
+            }},
+            {"$sort": {"updated_at": -1}},
+            {"$limit": limit}
+        ]
 
-        sessions = await cursor.to_list(length=limit)
+        sessions = await conversations_collection.aggregate(pipeline).to_list(length=limit)
+        logger.debug(f"[MEMORY] Found {len(sessions)} sessions (after deduplication)")
 
         # Format sessions for frontend
         formatted_sessions = []
@@ -259,12 +312,18 @@ async def list_user_sessions(
                 "metadata": session.get("metadata", {})
             })
 
+        logger.info(f"[MEMORY] ✅ Returning {len(formatted_sessions)} sessions")
+
         return {
             "sessions": formatted_sessions,
             "total": len(formatted_sessions)
         }
 
+    except HTTPException:
+        logger.error(f"[MEMORY] ❌ HTTP Exception in list_sessions")
+        raise
     except Exception as e:
+        logger.error(f"[MEMORY] ❌ Failed to list sessions: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to list sessions: {str(e)}"
@@ -275,27 +334,53 @@ async def get_session_messages(
     session_id: str,
     current_user: User = Depends(get_current_user)
 ):
-    """Get all messages from a specific session"""
+    """Get all messages from a specific session (aggregates duplicate documents)"""
     try:
         user_id = str(current_user.id)
 
-        session = await conversations_collection.find_one({
+        # Find ALL documents with this session_id (there might be duplicates)
+        cursor = conversations_collection.find({
             "session_id": session_id,
             "user_id": user_id
-        })
+        }).sort("created_at", 1)
+        
+        sessions = await cursor.to_list(length=100)
 
-        if not session:
+        if not sessions:
             raise HTTPException(
                 status_code=404,
                 detail="Session not found"
             )
 
+        # Aggregate messages from all duplicate documents
+        all_messages = []
+        earliest_created = sessions[0].get("created_at")
+        latest_updated = sessions[0].get("updated_at")
+        metadata = sessions[0].get("metadata", {})
+        
+        for session in sessions:
+            messages = session.get("messages", [])
+            all_messages.extend(messages)
+            
+            # Track earliest created_at and latest updated_at
+            created_at = session.get("created_at")
+            updated_at = session.get("updated_at")
+            if created_at and created_at < earliest_created:
+                earliest_created = created_at
+            if updated_at and updated_at > latest_updated:
+                latest_updated = updated_at
+        
+        # Sort messages by timestamp
+        all_messages.sort(key=lambda m: m.get("timestamp", datetime.min))
+        
+        logger.info(f"[MEMORY] Loaded session {session_id}: {len(sessions)} documents, {len(all_messages)} total messages")
+
         return {
             "session_id": session_id,
-            "messages": session.get("messages", []),
-            "created_at": session.get("created_at"),
-            "updated_at": session.get("updated_at"),
-            "metadata": session.get("metadata", {})
+            "messages": all_messages,
+            "created_at": earliest_created,
+            "updated_at": latest_updated,
+            "metadata": metadata
         }
 
     except HTTPException:
