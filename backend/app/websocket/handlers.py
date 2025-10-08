@@ -14,6 +14,7 @@ from app.services.hebrew_parser_service import HebrewParserService
 from app.services.gamification_service import GamificationService
 from app.services.voice_service import VoiceService
 from app.services.hebrew_model_manager import HebrewModelManager
+from app.services.consistency_service import ConsistencyService
 from app.core.database import get_db
 from app.models.models import User, Exercise, Workout
 from app.api.v1.auth import get_current_user_ws
@@ -25,6 +26,7 @@ hebrew_parser = HebrewParserService()
 gamification_service = GamificationService()
 voice_service = VoiceService()
 model_manager = HebrewModelManager()
+# consistency_service will be created when needed with a database session
 
 class WebSocketHandler:
     """Main WebSocket message handler"""
@@ -82,7 +84,7 @@ class WebSocketHandler:
             
         elif result_type == "chat_message":
             # Process chat message
-            model = result.get("model", "gemini-1.5-flash")
+            model = result.get("model", "openai-gpt-4o-mini")
             await self.handle_chat_message(result["message"], model)
             
         elif result_type == "exercise_log":
@@ -134,7 +136,7 @@ class WebSocketHandler:
                 }
             }, self.user_id)
     
-    async def handle_chat_message(self, message: str, model: str = "gemini-1.5-flash"):
+    async def handle_chat_message(self, message: str, model: str = "openai-gpt-4o-mini"):
         """Process chat message and generate response"""
         try:
             # Parse for exercise commands
@@ -270,6 +272,9 @@ class WebSocketHandler:
                     "points": daily_challenge["points"],
                     "icon": "🎯"
                 })
+
+            # Check consistency
+            await consistency_service.check_consistency(self.user.id, self.db)
             
         except Exception as e:
             logger.error(f"Error logging exercise: {e}")

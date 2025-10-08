@@ -148,6 +148,15 @@ async def get_current_user(
     
     return user
 
+async def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current authenticated user and check for admin role"""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user does not have enough privileges",
+        )
+    return current_user
+
 async def get_current_user_ws(
     token: str = Query(...),
     db: AsyncSession = Depends(get_db)
@@ -351,30 +360,105 @@ async def logout_user(
     return {"message": "Successfully logged out"}
 
 # Guest/demo endpoints
+class GuestUserRequest(BaseModel):
+    device_id: Optional[str] = None
+
 @router.post("/guest", response_model=Token)
 async def create_guest_user(
+    request: GuestUserRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    """Create temporary guest user"""
-    
-    # Generate unique guest username
-    guest_id = secrets.token_hex(8)
-    guest_username = f"guest_{guest_id}"
-    
-    # Create guest user
-    guest_user = User(
-        username=guest_username,
-        email=f"{guest_username}@guest.sweatbot.com",
-        full_name="Guest User",
-        preferred_language="he",
-        password_hash=hash_password(secrets.token_hex(16)),
-        is_active=True,
-        is_guest=True
-    )
-    
-    db.add(guest_user)
-    await db.commit()
-    await db.refresh(guest_user)
+    """Create or retrieve temporary guest user based on device ID"""
+
+    device_id = request.device_id if request and request.device_id else None
+
+    # If device_id provided, check for existing guest user
+    if device_id:
+        guest_email = f"{device_id}@guest.sweatbot.com"
+
+        # Query for existing user by email first
+        query = select(User).where(User.email == guest_email)
+        result = await db.execute(query)
+        existing_user = result.scalar_one_or_none()
+
+        if existing_user:
+            # Check if it's a guest user
+            if existing_user.is_guest:
+                logger.info(f"[AUTH] Returning existing guest user: {existing_user.username} (device_id: {device_id[:8]})")
+                guest_user = existing_user
+            else:
+                # Email exists but not a guest - this is an error
+                logger.error(f"[AUTH] Email {guest_email} exists but is_guest={existing_user.is_guest}")
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Email already in use by non-guest account"
+                )
+        else:
+            # Create new guest with device ID
+            guest_username = f"guest_{device_id[:8]}"
+            logger.info(f"[AUTH] Creating new guest user: {guest_username} (device_id: {device_id[:8]})")
+
+            guest_user = User(
+                username=guest_username,
+                email=guest_email,
+                full_name="Guest User",
+                preferred_language="he",
+                password_hash=hash_password(secrets.token_hex(16)),
+                is_active=True,
+                is_guest=True
+            )
+
+            try:
+                db.add(guest_user)
+                await db.commit()
+                await db.refresh(guest_user)
+                logger.info(f"[AUTH] ✅ Guest user created successfully: {guest_username}")
+            except Exception as e:
+                await db.rollback()
+                logger.error(f"[AUTH] ❌ Failed to create guest user: {str(e)}")
+
+                # Try to fetch again in case of race condition
+                result = await db.execute(select(User).where(User.email == guest_email))
+                existing_user = result.scalar_one_or_none()
+
+                if existing_user and existing_user.is_guest:
+                    logger.warning(f"[AUTH] Race condition detected - using existing guest user")
+                    guest_user = existing_user
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Failed to create guest user: {str(e)}"
+                    )
+    else:
+        # Fallback: create random guest user (legacy behavior)
+        guest_id = secrets.token_hex(8)
+        guest_username = f"guest_{guest_id}"
+        guest_email = f"{guest_username}@guest.sweatbot.com"
+
+        logger.info(f"[AUTH] Creating legacy guest user: {guest_username}")
+
+        guest_user = User(
+            username=guest_username,
+            email=guest_email,
+            full_name="Guest User",
+            preferred_language="he",
+            password_hash=hash_password(secrets.token_hex(16)),
+            is_active=True,
+            is_guest=True
+        )
+
+        try:
+            db.add(guest_user)
+            await db.commit()
+            await db.refresh(guest_user)
+            logger.info(f"[AUTH] ✅ Legacy guest user created: {guest_username}")
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"[AUTH] ❌ Failed to create legacy guest: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create guest user: {str(e)}"
+            )
     
     # Create short-lived token for guest (1 day)
     access_token_expires = timedelta(days=1)

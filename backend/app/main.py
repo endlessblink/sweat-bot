@@ -17,6 +17,8 @@ from datetime import datetime
 from app.core.config import settings
 from app.core.database import create_database_tables, engine
 from app.api.v1 import auth, exercises, chat, onboarding, memory
+from app.api.endpoints import goals
+from app.api import points
 from app.websocket.handlers import websocket_endpoint
 from app.websocket.connection_manager import connection_manager, periodic_cleanup
 
@@ -207,6 +209,8 @@ app.include_router(exercises.router, prefix="/exercises", tags=["exercises"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(onboarding.router, prefix="/onboarding", tags=["onboarding"])
 app.include_router(memory.router, prefix="/api/memory", tags=["memory"])
+app.include_router(points.router, prefix="/api/points", tags=["points"])
+app.include_router(goals.router, prefix="/api/goals", tags=["goals"])
 
 # WebSocket endpoint
 @app.websocket("/ws")
