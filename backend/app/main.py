@@ -3,7 +3,7 @@ SweatBot FastAPI Application
 Main entry point for the Hebrew fitness tracking API
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
@@ -12,15 +12,19 @@ import asyncio
 import logging
 import os
 from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import our modules
 from app.core.config import settings
-from app.core.database import create_database_tables, engine
-from app.api.v1 import auth, exercises, chat, onboarding, memory
+from app.core.database import create_database_tables, engine, get_db
+from app.api.v1 import auth, exercises, chat, onboarding, memory, profile
+from app.api.v1.auth import get_current_user_ws
 from app.api.endpoints import goals
 from app.api import points
+from app.api import points_v2
 from app.websocket.handlers import websocket_endpoint
 from app.websocket.connection_manager import connection_manager, periodic_cleanup
+from app.models.models import User
 
 # Configure logging
 logging.basicConfig(
@@ -209,14 +213,20 @@ app.include_router(exercises.router, prefix="/exercises", tags=["exercises"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(onboarding.router, prefix="/onboarding", tags=["onboarding"])
 app.include_router(memory.router, prefix="/api/memory", tags=["memory"])
+app.include_router(profile.router, prefix="/api/v1", tags=["profile"])
 app.include_router(points.router, prefix="/api/points", tags=["points"])
+app.include_router(points_v2.router, prefix="/api/points/v2", tags=["points-v2"])
 app.include_router(goals.router, prefix="/api/goals", tags=["goals"])
 
 # WebSocket endpoint
 @app.websocket("/ws")
-async def websocket_handler(websocket: WebSocket, token: str = None):
+async def websocket_handler(
+    websocket: WebSocket,
+    current_user: User = Depends(get_current_user_ws),
+    db: AsyncSession = Depends(get_db)
+):
     """Main WebSocket endpoint for real-time features"""
-    await websocket_endpoint(websocket, token=token)
+    await websocket_endpoint(websocket, current_user, db)
 
 # Root endpoint
 @app.get("/")

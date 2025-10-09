@@ -15,6 +15,7 @@ from app.models.models import Exercise, Workout, PersonalRecord, User
 from app.api.v1.auth import get_current_user
 from app.services.gamification_service import GamificationService
 from app.services.hebrew_parser_service import HebrewParserService
+from app.services.workout_variety_service import WorkoutVarietyService
 
 router = APIRouter()
 
@@ -76,6 +77,7 @@ class PersonalRecordResponse(BaseModel):
 # Initialize services
 gamification_service = GamificationService()
 hebrew_parser = HebrewParserService()
+workout_variety_service = WorkoutVarietyService()
 
 @router.post("/log", response_model=ExerciseResponse)
 async def log_exercise(
@@ -495,5 +497,60 @@ async def clear_all_data(
             "exercises": len(exercises),
             "workouts": len(workouts),
             "personal_records": len(personal_records)
+        }
+    }
+@router.get("/personalized-workout")
+async def get_personalized_workout(
+    duration_minutes: int = 10,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Generate a personalized workout based on user profile
+    
+    Filters exercises by:
+    - Available equipment
+    - Fitness goals
+    - Focus areas
+    - Fitness level
+    - Exercises to avoid
+    """
+    # Build user context from profile
+    user_context = {
+        'available_equipment': current_user.available_equipment or {'bodyweight': True},
+        'fitness_goals': current_user.fitness_goals or [],
+        'focus_areas': current_user.focus_areas or [],
+        'avoid_exercises': current_user.avoid_exercises or [],
+        'fitness_level': current_user.fitness_level or 'intermediate',
+        'preferred_workout_types': current_user.preferred_workout_types or [],
+        'workout_frequency_per_week': current_user.workout_frequency_per_week,
+        'preferred_workout_duration_minutes': current_user.preferred_workout_duration_minutes
+    }
+    
+    # Generate personalized workout
+    workout = workout_variety_service.get_varied_break_workout(
+        duration_minutes=duration_minutes,
+        user_context=user_context
+    )
+    
+    # Add profile-based message
+    profile_completion = current_user.profile_completion_percentage or 0
+    if profile_completion < 70:
+        workout['message'] = 'להמלצות מותאמות יותר, השלם את הפרופיל שלך! 🎯'
+    elif profile_completion == 100:
+        workout['message'] = 'אימון מותאם במיוחד עבורך! 💪'
+    else:
+        workout['message'] = 'אימון מותאם בהתאם להעדפותיך! ⚡'
+    
+    return {
+        "success": True,
+        "workout": workout,
+        "profile_completion": profile_completion,
+        "personalization_active": profile_completion >= 40,
+        "user_context": {
+            "fitness_level": user_context['fitness_level'],
+            "goals_count": len(user_context['fitness_goals']),
+            "focus_areas_count": len(user_context['focus_areas']),
+            "equipment_types": len(user_context['available_equipment'])
         }
     }
