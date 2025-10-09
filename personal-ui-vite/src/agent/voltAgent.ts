@@ -121,9 +121,10 @@ export class VoltAgent {
         
       } catch (error) {
         console.error(`Provider ${this.activeProvider} failed:`, error);
+        const err = error instanceof Error ? error : new Error(String(error));
         console.error(`Provider ${this.activeProvider} error details:`, {
-          message: error.message,
-          stack: error.stack,
+          message: err.message,
+          stack: err.stack,
           provider: this.activeProvider
         });
         attempts++;
@@ -131,7 +132,7 @@ export class VoltAgent {
         if (attempts < maxAttempts) {
           await this.fallbackToNextProvider();
         } else {
-          throw new Error(`All providers failed. Last error: ${error.message}`);
+          throw new Error(`All providers failed. Last error: ${err.message}`);
         }
       }
     }
@@ -221,7 +222,8 @@ export class VoltAgent {
         }
       } catch (error) {
         console.error(`Tool execution failed:`, error);
-        const errorMsg = `לא הצלחתי להפעיל את הכלי: ${error.message}`;
+        const err = error instanceof Error ? error : new Error(String(error));
+        const errorMsg = `לא הצלחתי להפעיל את הכלי: ${err.message}`;
         finalContent = finalContent ? finalContent + `\n\n${errorMsg}` : errorMsg;
       }
     }

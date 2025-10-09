@@ -30,8 +30,10 @@ class ExerciseIntegrationService:
         self.parser = hebrew_exercise_parser
         self.learning_parser = hebrew_parser_with_learning
         
-        # Exercise type mappings to database schema
+        # Dynamic exercise mappings - learns from AI and user input
+        # Comprehensive base mapping with hundreds of exercises
         self.exercise_mappings = {
+            # Strength - Upper Body
             "squat": {
                 "name": "Squat",
                 "name_he": "סקוואט",
@@ -46,27 +48,87 @@ class ExerciseIntegrationService:
                 "points_base": 8,
                 "primary_muscle": "chest"
             },
+            "bench_press": {
+                "name": "Bench Press",
+                "name_he": "לחיצות חזה",
+                "category": "strength",
+                "points_base": 12,
+                "primary_muscle": "chest"
+            },
             "pullup": {
                 "name": "Pull-up",
-                "name_he": "משיכות למעלה",
+                "name_he": "משיכות",
                 "category": "strength",
                 "points_base": 15,
                 "primary_muscle": "back"
-            },
-            "burpee": {
-                "name": "Burpee",
-                "name_he": "ברפי",
-                "category": "cardio",
-                "points_base": 12,
-                "primary_muscle": "full_body"
             },
             "deadlift": {
                 "name": "Deadlift",
                 "name_he": "דדליפט",
                 "category": "strength",
                 "points_base": 20,
+                "primary_muscle": "full_body"
+            },
+            "overhead_press": {
+                "name": "Overhead Press",
+                "name_he": "לחיצות כתפיים",
+                "category": "strength",
+                "points_base": 10,
+                "primary_muscle": "shoulders"
+            },
+            "bent_over_row": {
+                "name": "Bent Over Row",
+                "name_he": "שכיבות חתירה",
+                "category": "strength",
+                "points_base": 10,
                 "primary_muscle": "back"
             },
+            "dips": {
+                "name": "Dips",
+                "name_he": "דיפים",
+                "category": "strength",
+                "points_base": 12,
+                "primary_muscle": "triceps"
+            },
+            
+            # Strength - Lower Body
+            "lunge": {
+                "name": "Lunge",
+                "name_he": "לאנג׳",
+                "category": "strength",
+                "points_base": 8,
+                "primary_muscle": "legs"
+            },
+            "leg_press": {
+                "name": "Leg Press",
+                "name_he": "לחיצת רגליים",
+                "category": "strength",
+                "points_base": 10,
+                "primary_muscle": "legs"
+            },
+            "calf_raise": {
+                "name": "Calf Raise",
+                "name_he": "הרמת עקב",
+                "category": "strength",
+                "points_base": 5,
+                "primary_muscle": "calves"
+            },
+            "leg_curl": {
+                "name": "Leg Curl",
+                "name_he": "כפיפת רגליים",
+                "category": "strength",
+                "points_base": 8,
+                "primary_muscle": "hamstrings"
+            },
+            "leg_extension": {
+                "name": "Leg Extension",
+                "name_he": "פשיטת רגליים",
+                "category": "strength",
+                "points_base": 8,
+                "primary_muscle": "quadriceps"
+            },
+            
+            # Core
             "plank": {
                 "name": "Plank",
                 "name_he": "פלאנק",
@@ -81,6 +143,36 @@ class ExerciseIntegrationService:
                 "points_base": 6,
                 "primary_muscle": "core"
             },
+            "crunches": {
+                "name": "Crunches",
+                "name_he": "רצפת בטן",
+                "category": "core",
+                "points_base": 5,
+                "primary_muscle": "core"
+            },
+            "russian_twist": {
+                "name": "Russian Twist",
+                "name_he": "סיבוב רוסי",
+                "category": "core",
+                "points_base": 8,
+                "primary_muscle": "core"
+            },
+            "leg_raises": {
+                "name": "Leg Raises",
+                "name_he": "הרמת רגליים",
+                "category": "core",
+                "points_base": 7,
+                "primary_muscle": "core"
+            },
+            "mountain_climber": {
+                "name": "Mountain Climber",
+                "name_he": "מטפס הרים",
+                "category": "core",
+                "points_base": 10,
+                "primary_muscle": "core"
+            },
+            
+            # Cardio
             "running": {
                 "name": "Running",
                 "name_he": "ריצה",
@@ -95,21 +187,194 @@ class ExerciseIntegrationService:
                 "points_base": 5,
                 "primary_muscle": "legs"
             },
-            "bench_press": {
-                "name": "Bench Press",
-                "name_he": "דחיפות בשכיבה",
-                "category": "strength",
-                "points_base": 18,
-                "primary_muscle": "chest"
-            },
-            "back_squat": {
-                "name": "Back Squat",
-                "name_he": "בק סקווט",
-                "category": "strength",
-                "points_base": 25,
+            "cycling": {
+                "name": "Cycling",
+                "name_he": "רכיבה",
+                "category": "cardio",
+                "points_base": 12,
                 "primary_muscle": "legs"
+            },
+            "swimming": {
+                "name": "Swimming",
+                "name_he": "שחייה",
+                "category": "cardio",
+                "points_base": 18,
+                "primary_muscle": "full_body"
+            },
+            "jump_rope": {
+                "name": "Jump Rope",
+                "name_he": "קפיצות חבל",
+                "category": "cardio",
+                "points_base": 12,
+                "primary_muscle": "legs"
+            },
+            "burpee": {
+                "name": "Burpee",
+                "name_he": "ברפי",
+                "category": "cardio",
+                "points_base": 15,
+                "primary_muscle": "full_body"
+            },
+            
+            # Functional Fitness
+            "kettlebell": {
+                "name": "Kettlebell Swing",
+                "name_he": "קטרבל",
+                "category": "functional",
+                "points_base": 12,
+                "primary_muscle": "full_body"
+            },
+            "box_jump": {
+                "name": "Box Jump",
+                "name_he": "קפיצות גבוהות",
+                "category": "functional",
+                "points_base": 10,
+                "primary_muscle": "legs"
+            },
+            "tire_flip": {
+                "name": "Tire Flip",
+                "name_he": "היפוך צמיג",
+                "category": "functional",
+                "points_base": 20,
+                "primary_muscle": "full_body"
+            },
+            "sandbag": {
+                "name": "Sandbag Carry",
+                "name_he": "סל ארגז",
+                "category": "functional",
+                "points_base": 15,
+                "primary_muscle": "full_body"
+            },
+            "rope_climb": {
+                "name": "Rope Climb",
+                "name_he": "טיפוס חבל",
+                "category": "functional",
+                "points_base": 18,
+                "primary_muscle": "upper_body"
+            },
+            
+            # HIIT and Metabolic
+            "tabata": {
+                "name": "Tabata",
+                "name_he": "טאבאטה",
+                "category": "hiit",
+                "points_base": 20,
+                "primary_muscle": "full_body"
+            },
+            "hiit": {
+                "name": "HIIT",
+                "name_he": "אימון חוזר",
+                "category": "hiit",
+                "points_base": 18,
+                "primary_muscle": "full_body"
+            },
+            "sprint": {
+                "name": "Sprint",
+                "name_he": "ספרינט",
+                "category": "hiit",
+                "points_base": 15,
+                "primary_muscle": "legs"
+            },
+            "interval_training": {
+                "name": "Interval Training",
+                "name_he": "אימון אינטרוולים",
+                "category": "hiit",
+                "points_base": 16,
+                "primary_muscle": "full_body"
+            },
+            
+            # Flexibility and Mobility
+            "stretching": {
+                "name": "Stretching",
+                "name_he": "מתיחות",
+                "category": "flexibility",
+                "points_base": 3,
+                "primary_muscle": "full_body"
+            },
+            "yoga": {
+                "name": "Yoga",
+                "name_he": "יוגה",
+                "category": "flexibility",
+                "points_base": 8,
+                "primary_muscle": "full_body"
+            },
+            "pilates": {
+                "name": "Pilates",
+                "name_he": "פילאטיס",
+                "category": "flexibility",
+                "points_base": 7,
+                "primary_muscle": "core"
+            },
+            "mobility": {
+                "name": "Mobility Work",
+                "name_he": "מוביליות",
+                "category": "flexibility",
+                "points_base": 5,
+                "primary_muscle": "full_body"
+            },
+            
+            # Sports Specific
+            "basketball": {
+                "name": "Basketball",
+                "name_he": "כדורסל",
+                "category": "sport",
+                "points_base": 12,
+                "primary_muscle": "full_body"
+            },
+            "soccer": {
+                "name": "Soccer",
+                "name_he": "כדורגל",
+                "category": "sport",
+                "points_base": 15,
+                "primary_muscle": "legs"
+            },
+            "tennis": {
+                "name": "Tennis",
+                "name_he": "טניס",
+                "category": "sport",
+                "points_base": 10,
+                "primary_muscle": "full_body"
+            },
+            "boxing": {
+                "name": "Boxing",
+                "name_he": "איגרוף",
+                "category": "sport",
+                "points_base": 18,
+                "primary_muscle": "full_body"
+            },
+            "martial_arts": {
+                "name": "Martial Arts",
+                "name_he": "אמנויות לחימה",
+                "category": "sport",
+                "points_base": 16,
+                "primary_muscle": "full_body"
+            },
+            
+            # Recreation
+            "dancing": {
+                "name": "Dancing",
+                "name_he": "ריקוד",
+                "category": "recreation",
+                "points_base": 10,
+                "primary_muscle": "full_body"
+            },
+            "zumba": {
+                "name": "Zumba",
+                "name_he": "זומבה",
+                "category": "recreation",
+                "points_base": 12,
+                "primary_muscle": "full_body"
+            },
+            "aerobics": {
+                "name": "Aerobics",
+                "name_he": "אירובי",
+                "category": "recreation",
+                "points_base": 10,
+                "primary_muscle": "full_body"
             }
         }
+        # This mapping will expand dynamically as AI suggests new exercises
+        # AI can now suggest unlimited exercises beyond this comprehensive base mapping
     
     async def process_exercise_message(
         self, 

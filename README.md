@@ -2,6 +2,24 @@
 
 An intelligent Hebrew fitness tracking system with voice recognition, real-time coaching, and gamification.
 
+## 📚 Documentation
+
+**🚨 New engineers**: Start with the [`.agent/`](.agent/) directory for complete project documentation
+
+### Quick Documentation Links
+- **🏗️ System Architecture**: [`.agent/system/project_architecture.md`](.agent/system/project_architecture.md) - Complete tech overview
+- **🗄️ Database Schema**: [`.agent/system/database_schema.md`](.agent/system/database_schema.md) - Data layer documentation  
+- **🛠️ Development Workflow**: [`.agent/system/development_workflow.md`](.agent/system/development_workflow.md) - Daily development guide
+- **📋 SOPs**: [`.agent/sop/`](.agent/sop/) directory - Standard operating procedures
+- **🎯 Features**: [`.agent/tasks/`](.agent/tasks/) directory - Feature specifications and PRDs
+
+### Key Resources for Engineers
+1. **Project Setup**: Follow the [Development Workflow](.agent/system/development_workflow.md) for environment setup
+2. **Code Standards**: See [Development Standards](.agent/system/development_workflow.md#-coding-standards) for Python/TypeScript requirements
+3. **Database Changes**: Follow [Database Migration SOP](.agent/sop/database_migrations.md) for any schema modifications
+4. **New Exercises**: Follow [Adding New Exercises SOP](.agent/sop/adding_new_exercises.md) for exercise integration
+5. **Feature Development**: Check [Tasks Directory](.agent/tasks/) for PRDs and implementation plans
+
 ## 🚀 Quick Start
 
 ### Using Docker (Recommended)

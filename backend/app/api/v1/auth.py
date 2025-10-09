@@ -467,7 +467,7 @@ async def create_guest_user(
         expires_delta=access_token_expires
     )
     
-    logger.info(f"Guest user created: {guest_username}")
+    logger.info(f"Guest user created: {guest_user.username}")
     
     return Token(
         access_token=access_token,

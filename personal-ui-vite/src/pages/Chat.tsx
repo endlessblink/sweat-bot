@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import SweatBotChat from '../components/SweatBotChat';
 import ChatHistorySidebar from '../components/ui/ChatHistorySidebar';
 import StatsPanel from '../components/ui/StatsPanel';
-import { getUsername, isGuestUser, clearAuth } from '../utils/auth';
+import { getUsername, isGuestUser, clearAuth, getUserRole } from '../utils/auth';
 
 /**
  * Classic Chat Layout - ChatGPT-style design
@@ -45,6 +45,8 @@ export default function Chat() {
     isOpen: statsOpen,
     setIsOpen: setStatsOpen
   }), [statsOpen]);
+
+const userRole = getUserRole();
 
   return (
     <div className="flex h-screen bg-black overflow-hidden">
@@ -113,6 +115,28 @@ export default function Chat() {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">
+            {/* Points Management Button */}
+            {userRole === 'admin' && (
+              <button
+                onClick={() => navigate('/points')}
+                className="px-3 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors text-sm flex items-center gap-2"
+                title="ניהול נקודות"
+              >
+                <span>🏆</span>
+                <span className="hidden sm:inline">נקודות</span>
+              </button>
+            )}
+
+            {/* Points Test Button */}
+            <button
+              onClick={() => navigate('/points-test')}
+              className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm flex items-center gap-2"
+              title="בדיקת נקודות"
+            >
+              <span>🧮</span>
+              <span className="hidden sm:inline">בדיקה</span>
+            </button>
+
             {/* Statistics Button */}
             <button
               onClick={() => setStatsOpen(true)}

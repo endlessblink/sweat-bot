@@ -3,7 +3,6 @@
  * Based on: https://docs.assistant-ui.com/runtimes/custom/local
  */
 
-import React from 'react';
 import {
   AssistantRuntimeProvider,
   useLocalRuntime,
@@ -11,26 +10,40 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   type ChatModelAdapter,
+  type ChatModelRunResult,
+  type TextMessagePart,
+  type ThreadMessage,
 } from '@assistant-ui/react';
 
 /**
  * Simple ChatModelAdapter - Exactly as per documentation
  */
+const getTextParts = (message?: ThreadMessage): string[] => {
+  if (!message) {
+    return [];
+  }
+
+  return message.content
+    ?.filter((part): part is TextMessagePart => part.type === 'text')
+    .map((part) => part.text) ?? [];
+};
+
 const SweatBotModelAdapter: ChatModelAdapter = {
-  async run({ messages, abortSignal }) {
+  async run({ messages, abortSignal }): Promise<ChatModelRunResult> {
     console.log('🔍 [Simple SweatBot] Run function called');
     console.log('📝 [Simple SweatBot] Messages:', messages);
-    
+
+    if (abortSignal.aborted) {
+      return { content: [] };
+    }
+
     const lastMessage = messages[messages.length - 1];
-    const text = lastMessage?.content
-      ?.filter((part: any) => part.type === 'text')
-      ?.map((part: any) => part.text)
-      ?.join(' ') || '';
+    const text = getTextParts(lastMessage).join(' ');
 
     console.log('✅ [Simple SweatBot] Extracted text:', text);
 
     // Simple test response first
-    const result = {
+    const result: ChatModelRunResult = {
       content: [
         { type: 'text', text: `✅ WORKING! You said: "${text}"` }
       ],
@@ -44,7 +57,7 @@ const SweatBotModelAdapter: ChatModelAdapter = {
 /**
  * Message Component - Matches assistant-ui documentation pattern exactly
  */
-const Message = ({ message }: { message: any }) => (
+const Message = ({ message }: { message: ThreadMessage }) => (
   <MessagePrimitive.Root message={message}>
     <div className={`flex mb-4 ${
       message.role === 'user' ? 'justify-end' : 'justify-start'

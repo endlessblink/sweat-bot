@@ -3,11 +3,19 @@
  * Exports all tool implementations for the Volt Agent
  */
 
-export { exerciseLoggerTool } from './exerciseLogger';
-export { statsRetrieverTool } from './statsRetriever';
-export { dataManagerTool } from './dataManager';
-export { goalSetterTool } from './goalSetter';
-export { progressAnalyzerTool } from './progressAnalyzer';
+import { exerciseLoggerTool } from './exerciseLogger';
+import { statsRetrieverTool } from './statsRetriever';
+import { dataManagerTool } from './dataManager';
+import { goalSetterTool } from './goalSetter';
+import { progressAnalyzerTool } from './progressAnalyzer';
+
+export {
+  exerciseLoggerTool,
+  statsRetrieverTool,
+  dataManagerTool,
+  goalSetterTool,
+  progressAnalyzerTool
+};
 
 // Export as array for easy agent initialization
 export const allTools = [

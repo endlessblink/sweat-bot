@@ -28,11 +28,21 @@ router = APIRouter()
 model_manager = HebrewModelManager()
 gamification_service = GamificationService()
 
+
+async def _detect_correction_pattern(message: str) -> bool:
+    """Detect whether a user message is attempting to correct a previous log."""
+    if not message:
+        return False
+
+    normalized = message.strip().lower()
+    correction_keywords = ["תיקון", "לא,", "לא -", "התכוונתי", "בעצם", "לא נכון"]
+    return any(keyword in normalized for keyword in correction_keywords)
+
 # Pydantic models for API
 class ChatMessage(BaseModel):
     """Input model for chat messages"""
     message: str = Field(..., description="User message in Hebrew or English")
-    model: Optional[str] = Field("gemini-1.5-flash", description="AI model to use")
+    model: Optional[str] = Field("openai-gpt-4o-mini", description="AI model to use")
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context")
     session_id: Optional[str] = Field(None, description="Chat session ID")
 
@@ -124,7 +134,7 @@ async def send_chat_message(
                 logger.warning(f"Model {chat_input.model} failed, trying fallback")
                 response_data = await model_manager.generate_chat_response(
                     message=chat_input.message,
-                    model="gemini-1.5-flash",  # Fallback model
+                    model="openai-gpt-4o-mini",  # Fallback model
                     context=context,
                     user_id=str(current_user.id)
                 )

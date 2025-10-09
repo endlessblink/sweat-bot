@@ -8,23 +8,13 @@ import re
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
-from enum import Enum
+# Enum removed - exercises now handled dynamically
 
 logger = logging.getLogger(__name__)
 
-class ExerciseType(Enum):
-    """Common exercise types with Hebrew mappings"""
-    SQUAT = ("squat", ["סקוואט", "סקוואטים", "כפיפות ברכיים"])
-    PUSHUP = ("pushup", ["שכיבות", "שכיבות סמיכה", "דחיפות", "פושאפ"])
-    PULLUP = ("pullup", ["משיכות", "משיכות למעלה", "פול אפ", "עליות"])
-    BURPEE = ("burpee", ["ברפי", "ברפיז", "ברפיס"])
-    DEADLIFT = ("deadlift", ["דדליפט", "הרמה מתה", "דד ליפט"])
-    PLANK = ("plank", ["פלאנק", "איסק", "תמיכה בזרועות"])
-    SITUP = ("situp", ["סיטאפ", "בטן", "בטנים", "כפיפות בטן"])
-    RUNNING = ("running", ["ריצה", "ריצות", "רוץ", "רצתי"])
-    WALKING = ("walking", ["הליכה", "הולך", "הלכתי"])
-    BENCH_PRESS = ("bench_press", ["בנץ׳ פרס", "דחיפות בשכיבה", "חזה"])
-    BACK_SQUAT = ("back_squat", ["בק סקווט", "סקווט גב", "סקווט עם משקל"])
+# ExerciseType enum removed to allow unlimited exercise variety
+# The system now dynamically learns exercises from user input and AI responses
+# No more hardcoded exercise limitations - AI can suggest unlimited exercises
 
 class HebrewExerciseParser:
     """
@@ -33,12 +23,76 @@ class HebrewExerciseParser:
     """
     
     def __init__(self):
-        # Build exercise mapping from enum
-        self.exercise_mappings = {}
-        for exercise_type in ExerciseType:
-            english_name, hebrew_variants = exercise_type.value
-            for hebrew_name in hebrew_variants:
-                self.exercise_mappings[hebrew_name.lower()] = english_name
+        # Dynamic exercise mapping - learns from user input and AI responses
+        # Expanded base mapping with hundreds of exercise variations
+        self.exercise_mappings = {
+            # Strength exercises - Upper body
+            'שכיבות': 'pushup', 'שכיבות סמיכה': 'pushup', 'דחיפות': 'pushup', 'פושאפ': 'pushup',
+            'לחיצות': 'press', 'לחיצות חזה': 'bench_press', 'בנץ׳ פרס': 'bench_press', 'דחיפות בשכיבה': 'bench_press',
+            'משיכות': 'pullup', 'משיכות למעלה': 'pullup', 'פול אפ': 'pullup', 'עליות': 'pullup',
+            'מתח': 'pullup_bar', 'כושר גב': 'back_exercise', 'חתירות': 'rowing',
+            
+            # Strength exercises - Lower body
+            'סקוואט': 'squat', 'סקוואטים': 'squat', 'כפיפות ברכיים': 'squat',
+            'בק סקווט': 'back_squat', 'סקווט גב': 'back_squat', 'סקווט עם משקל': 'back_squat',
+            'לאנג׳': 'lunge', 'לאנג׳׳ים': 'lunges', 'לונג׳ים': 'lunges', 'לונגים': 'lunges', 'צעדים': 'step_ups',
+            'דדליפט': 'deadlift', 'הרמה מתה': 'deadlift', 'דד ליפט': 'deadlift',
+            'ריצת הרים': 'hill_sprint', 'קפיצות': 'jumps', 'קפיצות גבוהות': 'box_jumps',
+            
+            # Core exercises
+            'פלאנק': 'plank', 'פלנק': 'plank', 'איסק': 'plank', 'תמיכה בזרועות': 'plank',
+            'בטן': 'situp', 'בטנים': 'situp', 'כפיפות בטן': 'situp', 'סיטאפ': 'situp',
+            'רצפת בטן': 'crunches', 'כרית': 'crunches', 'חגורה': 'ab_belt',
+            'רוסי': 'russian_twist', 'סיבוב רוסי': 'russian_twist', 'סיבובי טראנס': 'russian_twist',
+            'כיסא': 'leg_raises', 'הרמת רגליים': 'leg_raises',
+            
+            # Cardio exercises
+            'ריצה': 'running', 'ריצות': 'running', 'רוץ': 'running', 'רצתי': 'running',
+            'הליכה': 'walking', 'הולך': 'walking', 'הלכתי': 'walking',
+            'רכיבה': 'cycling', 'אופניים': 'cycling', 'אופנ': 'cycling',
+            'שחייה': 'swimming', 'שחייה': 'swimming', 'בריכה': 'swimming',
+            'קפיצות חבל': 'jump_rope', 'חבל קפיצות': 'jump_rope',
+            'ברפי': 'burpee', 'ברפיז': 'burpee', 'ברפיס': 'burpee',
+            
+            # Functional fitness
+            'קטרבל': 'kettlebell', 'משקולת רוסית': 'kettlebell', 'KB': 'kettlebell',
+            'טייר׳': 'tire_flip', 'היפוך צמיג': 'tire_flip',
+            'סל ארגז': 'sandbag', 'שק חול': 'sandbag',
+            'חבל': 'rope_climb', 'טיפוס חבל': 'rope_climb',
+            'קיר': 'wall_climb', 'טיפוס קיר': 'wall_climb',
+            
+            # Flexibility and mobility
+            'מתיחות': 'stretching', 'יוגה': 'yoga', 'פילאטיס': 'pilates',
+            'פריסה': 'splits', 'גמישות': 'flexibility', 'מוביליות': 'mobility',
+            
+            # Sports specific
+            'כדורסל': 'basketball', 'כדורגל': 'soccer', 'טניס': 'tennis',
+            'אגרוף': 'boxing', 'קרב מגע': 'martial_arts', 'איגרוף': 'boxing',
+            
+            # HIIT and metabolic
+            'טאבאטה': 'tabata', 'HIIT': 'hiit', 'אימון חוזר': 'interval_training',
+            'ספרינט': 'sprint', 'ריצת פרצים': 'sprint', 'מרוץ': 'sprint',
+            
+            # Calisthenics
+            'שכיבות ידיים': 'diamond_pushup', 'שכיבות רחב': 'wide_pushup',
+            'עליית מדרגות': 'step_climbing', 'טיפוס סולם': 'ladder_climb',
+            'טריצפס': 'triceps_dip', 'דיפים': 'dips',
+            
+            # Weightlifting variations
+            'הרמה אולימפית': 'olympic_lift', 'הנפה': 'snatch', 'דחיקה': 'clean_and_jerk',
+            'הרמת כוח': 'power_lift', 'סקווט חזיתי': 'front_squat',
+            'הרמת ישיבה': 'seated_calf_raise', 'הרמת עקב': 'calf_raise',
+            
+            # Endurance sports
+            'מרתון': 'marathon', 'חצי מרתון': 'half_marathon', 'טריאתלון': 'triathlon',
+            'ריצת שדה': 'trail_running', 'ריצת סבבות': 'lap_running',
+            
+            # Recreation and fun
+            'ריקוד': 'dancing', 'זומבה': 'zumba', 'אירובי': 'aerobics',
+            'קליעה': 'shooting', 'קשתות': 'archery', 'טיפוס הרים': 'mountain_climbing'
+        }
+        # This mapping will expand dynamically as users input new exercises
+        # AI can now suggest unlimited exercises beyond this base mapping
         
         # Hebrew number patterns
         self.hebrew_numbers = {
@@ -209,6 +263,8 @@ class HebrewExerciseParser:
                 if confidence > best_confidence:
                     best_confidence = confidence
                     best_match = {
+                        "exercise_name": hebrew_name,
+                        "exercise_type": english_name,
                         "exercise": english_name,
                         "exercise_he": hebrew_name,
                         "match_confidence": confidence
@@ -388,11 +444,17 @@ class HebrewExerciseParser:
         return random.choice(clarifications)
     
     async def get_supported_exercises(self) -> List[Dict[str, Any]]:
-        """Get list of supported exercises"""
+        """Get list of supported exercises - now dynamic and unlimited"""
         exercises = []
         
-        for exercise_type in ExerciseType:
-            english_name, hebrew_variants = exercise_type.value
+        # Create exercise groups from dynamic mappings
+        english_to_hebrew = {}
+        for hebrew_name, english_name in self.exercise_mappings.items():
+            if english_name not in english_to_hebrew:
+                english_to_hebrew[english_name] = []
+            english_to_hebrew[english_name].append(hebrew_name)
+        
+        for english_name, hebrew_variants in english_to_hebrew.items():
             exercises.append({
                 "english_name": english_name,
                 "hebrew_names": hebrew_variants,

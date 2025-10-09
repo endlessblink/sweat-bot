@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>SweatBot Auth Debug</title>
+    <style>
+        body {
+            background: #0A0A0A;
+            color: #FFFFFF;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #1A1A1A;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #3A3A3A;
+        }
+        h2 { color: #8B5CF6; }
+        pre {
+            background: #0A0A0A;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #8B5CF6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #7C3AED; }
+        .success { color: #10B981; }
+        .error { color: #EF4444; }
+    </style>
+</head>
+<body>
+    <h1>🔍 SweatBot Authentication Debug</h1>
+
+    <div class="section">
+        <h2>Current localStorage Data</h2>
+        <button onclick="showLocalStorage()">Refresh Data</button>
+        <button onclick="clearAuth()">Clear All Auth</button>
+        <pre id="localStorage-data">Click "Refresh Data" to see contents...</pre>
+    </div>
+
+    <div class="section">
+        <h2>Test Login (noamnau)</h2>
+        <button onclick="testLogin()">Login as noamnau</button>
+        <pre id="login-result"></pre>
+    </div>
+
+    <div class="section">
+        <h2>Check Auth State</h2>
+        <button onclick="checkAuthState()">Check State</button>
+        <pre id="auth-state"></pre>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://localhost:8000';
+
+        function showLocalStorage() {
+            const data = {
+                token: localStorage.getItem('sweatbot_auth_token'),
+                user: localStorage.getItem('sweatbot_user'),
+                deviceId: localStorage.getItem('sweatbot_device_id')
+            };
+
+            let output = '📦 localStorage Contents:\n\n';
+
+            if (data.token) {
+                output += `✅ Token exists (${data.token.length} chars)\n`;
+                output += `Token: ${data.token.substring(0, 50)}...\n\n`;
+            } else {
+                output += '❌ No token found\n\n';
+            }
+
+            if (data.user) {
+                const user = JSON.parse(data.user);
+                output += '✅ User data exists:\n';
+                output += JSON.stringify(user, null, 2) + '\n\n';
+
+                if (user.is_guest === false) {
+                    output += '✅ is_guest = false (REAL USER)\n';
+                } else if (user.is_guest === true) {
+                    output += '⚠️ is_guest = true (GUEST USER)\n';
+                } else {
+                    output += '❌ is_guest is undefined or null!\n';
+                }
+            } else {
+                output += '❌ No user data found\n';
+            }
+
+            if (data.deviceId) {
+                output += `\nDevice ID: ${data.deviceId}\n`;
+            }
+
+            document.getElementById('localStorage-data').textContent = output;
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('sweatbot_auth_token');
+            localStorage.removeItem('sweatbot_user');
+            localStorage.removeItem('sweatbot_device_id');
+            alert('✅ All auth data cleared!');
+            showLocalStorage();
+        }
+
+        async function testLogin() {
+            const resultEl = document.getElementById('login-result');
+            resultEl.textContent = '🔄 Logging in...';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'noamnau',
+                        password: 'Noam123!'
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Login failed');
+                }
+
+                const authData = await response.json();
+
+                // Store exactly like the real loginUser function
+                localStorage.setItem('sweatbot_auth_token', authData.access_token);
+                localStorage.setItem('sweatbot_user', JSON.stringify({
+                    ...authData.user,
+                    is_guest: false,
+                    created_at: Date.now()
+                }));
+
+                let output = '✅ Login Successful!\n\n';
+                output += 'Response from server:\n';
+                output += JSON.stringify(authData, null, 2) + '\n\n';
+                output += 'Stored in localStorage with is_guest: false\n';
+
+                resultEl.textContent = output;
+                showLocalStorage();
+
+            } catch (error) {
+                resultEl.textContent = `❌ Login Failed:\n${error.message}`;
+            }
+        }
+
+        function checkAuthState() {
+            const user = localStorage.getItem('sweatbot_user');
+            const stateEl = document.getElementById('auth-state');
+
+            if (!user) {
+                stateEl.textContent = '❌ No user in localStorage\nState: UNAUTHENTICATED';
+                return;
+            }
+
+            const userData = JSON.parse(user);
+
+            let output = '🔍 Auth State Check:\n\n';
+            output += `Username: ${userData.username || 'N/A'}\n`;
+            output += `Email: ${userData.email || 'N/A'}\n`;
+            output += `is_guest value: ${userData.is_guest}\n`;
+            output += `is_guest type: ${typeof userData.is_guest}\n\n`;
+
+            // Simulate the isGuestUser() function
+            const isGuest = userData.is_guest ?? true;
+            output += `isGuestUser() would return: ${isGuest}\n\n`;
+
+            if (isGuest) {
+                output += '⚠️ STATE: GUEST USER\n';
+                output += 'You will see "👤 אורח" badge\n';
+            } else {
+                output += '✅ STATE: REAL USER\n';
+                output += `You should see "🔐 ${userData.username}" badge\n`;
+            }
+
+            stateEl.textContent = output;
+        }
+
+        // Auto-load on page load
+        window.onload = showLocalStorage;
+    </script>
+</body>
+</html>

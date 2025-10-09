@@ -440,3 +440,6 @@ class GamificationService:
             "is_top_10": position <= 10,
             "is_top_100": position <= 100
         }
+
+# Singleton instance
+gamification_service = GamificationService()

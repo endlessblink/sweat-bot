@@ -454,7 +454,7 @@ class ConnectionManager:
                 return {
                     "type": "chat_message",
                     "message": data.get("message"),
-                    "model": data.get("model", "gemini-1.5-flash"),
+                    "model": data.get("model", "openai-gpt-4o-mini"),
                     "user_id": user_id,
                     "user_context": user_context
                 }

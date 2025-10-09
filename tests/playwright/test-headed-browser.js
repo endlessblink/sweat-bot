@@ -24,7 +24,7 @@ async function testHeadedBrowser() {
     console.log('✅ Browser launched!');
     
     console.log('📍 Navigating to SweatBot...');
-    await page.goto('http://localhost:8005/');
+    await page.goto('http://localhost:8009/');
     
     console.log('📄 Page title:', await page.title());
     console.log('');

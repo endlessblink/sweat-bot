@@ -5,46 +5,6 @@
 
 import { z } from 'zod';
 
-// Exercise patterns for Hebrew recognition
-const EXERCISE_PATTERNS: Record<string, string> = {
-  // Cardio
-  'ריצה': 'running',
-  'רצתי': 'running',
-  'רץ': 'running',
-  'הליכה': 'walking',
-  'הלכתי': 'walking',
-  'הלך': 'walking',
-  'אופניים': 'cycling',
-  'רכיבה': 'cycling',
-  
-  // Strength
-  'סקוואט': 'squat',
-  'סקוואטים': 'squat',
-  'שכיבות סמיכה': 'pushup',
-  'שכיבות שמיכה': 'pushup',
-  'פוש אפ': 'pushup',
-  'משיכות': 'pullup',
-  'משיכה': 'pullup',
-  'פול אפ': 'pullup',
-  'ברפי': 'burpee',
-  'ברפיז': 'burpee',
-  'דדליפט': 'deadlift',
-  'בק סקווט': 'back_squat',
-  'דחיפות בשכיבה': 'bench_press',
-  'בנץ\' פרס': 'bench_press',
-  
-  // Gymnastics/CrossFit
-  'טיפוסי חבל': 'rope_climb',
-  'טיפוס חבל': 'rope_climb',
-  'חבל': 'rope_climb',
-  
-  // Core
-  'פלאנק': 'plank',
-  'כפיפות בטן': 'situp',
-  'כפיפת בטן': 'situp',
-  'בטן': 'abs'
-};
-
 // Tool schema
 const exerciseLoggerSchema = z.object({
   exercise: z.string().describe('Exercise name in English'),

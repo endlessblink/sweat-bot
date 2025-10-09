@@ -8,7 +8,6 @@ import { GeminiProvider } from './providers/gemini';
 import { GroqProvider } from './providers/groq';
 import { OpenAIProvider } from './providers/openai';
 import { LocalModelsProvider } from './providers/localModels';
-import { MongoMemory } from './memory/mongoMemory';
 import { sanitizeResponse, isResponseSafe } from './utils/responseSanitizer';
 import { getOrCreateGuestToken } from '../utils/auth';
 
@@ -71,14 +70,14 @@ export class SweatBotAgent {
   private initializeProviders() {
     const providers: any = {};
     
-    // OpenAI - Now primary provider for reliable tool calling (GPT-4o-mini)
+    // OpenAI - Now primary provider for reliable tool calling (GPT-5-mini)
     if (import.meta.env.VITE_OPENAI_API_KEY) {
       try {
         providers.openai = new OpenAIProvider({
           apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-          model: 'gpt-4o-mini' // Cost-effective and reliable
+          model: 'gpt-5-mini' // Upgraded to GPT-5-mini for enhanced reasoning
         });
-        console.log('✅ OpenAI provider initialized (PRIMARY - GPT-4o-mini)');
+        console.log('✅ OpenAI provider initialized (PRIMARY - GPT-5-mini)');
       } catch (error) {
         console.error('Failed to initialize OpenAI provider:', error);
       }
@@ -140,9 +139,42 @@ export class SweatBotAgent {
 1. **וריאציה מוחלטת**: לעולם אל תחזור על אותה תשובה! כל תגובה חייבת להיות ייחודית.
 2. **עברית חיה**: דבר כמו חבר אמיתי, לא כמו רובוט. שפה יומיומית וטבעית.
 3. **קצר וקולע**: תשובות ממוקדות, לא הרצאות.
-4. **גיוון חכם**: בזמן שמציעים אימון קצר (לדוגמה "5 דקות" או "הפסקה"), בחר תרגילים פשוטים שדורשים אפס ציוד (סקוואטים, ג'אמפינג ג'קס, פלנק, מתיחות). אל תכלול טיפוס חבל או תרגילים מסוכנים אלא אם המשתמש ביקש מפורשות.
-5. **רנדומיזציה קלה**: שלב תרגילים בסדר שונה בכל פעם והחלף לפחות תרגיל אחד בין תשובות דומות. אם אין רעיון, בחר רנדומלית מתוך מאגר תרגילים קצר של משקל גוף.
-6. **חזרות ומשכי זמן**: לכל תרגיל קצר חייב להיות מספר חזרות או משך (לדוגמה "20 חזרות" או "40 שניות").
+4. **🚨 CRITICAL: גיוון מלא ומוחלט**: כשמציעים אימון (5 דקות או הפסקה), חובה לבחור תרגילים שונים לחלוטין מהפעם הקודמת!
+
+   **מאגר תרגילים (20+ אפשרויות):**
+   - סקוואטים (כיפופי ברכיים)
+   - לאנג'ים (צעדים)
+   - שכיבות שימוש (push-ups) - **חשוב: לעולם לא "שכיבות סמיכה"!**
+   - פלנק
+   - ברפי
+   - Jumping Jacks - **חובה באנגלית!**
+   - הרמות ברכיים
+   - שכיבות צד (side plank)
+   - ריצה במקום
+   - הליכה מהירה
+   - Mountain Climbers - **חובה באנגלית!**
+   - כפיפות בטן (crunches)
+   - Russian Twists - **חובה באנגלית!**
+   - הרמות רגליים
+   - גשר ישבן (glute bridge)
+   - כיפוף גב (superman)
+   - שכיבות זוגיות עם סיבוב
+   - קפיצות חד רגלית
+   - פלנק דינמי
+   - שכיבות רגליים (leg raises)
+
+   **אסור מוחלט:**
+   - ❌ אין להציע טיפוס חבל (אלא אם ביקשו)
+   - ❌ אין להציע תרגילים עם ציוד (אלא אם ביקשו)
+   - ❌ אין לחזור על אותה קבוצת תרגילים!
+
+5. **רנדומיזציה מלאה**:
+   - בכל בקשה לאימון קצר - החלף לפחות 3-4 תרגילים מהפעם הקודמת
+   - שנה את הסדר לחלוטין
+   - גוון במשך/חזרות (לא תמיד אותם מספרים)
+   - אם קיבלת רשימת תרגילים קודמים להימנע מהם - אל תשתמש בהם!
+
+6. **חזרות ומשכי זמן**: לכל תרגיל חייב להיות מספר חזרות או משך (לדוגמה "20 חזרות" או "40 שניות"). גוון במספרים!
 
 🎯 **כלל חשוב לרישום תרגילים**:
 כשמשתמש נותן פרטי תרגיל - הפעל את exerciseLogger מיד! אל תשאל שאלות מיוטרות!
@@ -204,46 +236,12 @@ export class SweatBotAgent {
         temperature: 0.9  // Higher temperature for more variety
       });
       console.log('SweatBotAgent: Got response from VoltAgent:', typeof response, response);
-      
-      // CRITICAL FIX: VoltAgent already handles tool execution and returns a string
-      // We should NOT process tool calls here - just use the response directly
-      let finalResponse: string;
-      
-      console.log('Raw response type:', typeof response);
-      console.log('Raw response value:', response);
-      
-      // CRITICAL: Check if response is the Groq object being stringified
-      if (response && typeof response === 'object' && 'toolCalls' in response) {
-        console.error('CRITICAL BUG: Groq response object leaked to index.ts!', response);
-        // This should NEVER happen - VoltAgent should process tools and return only strings
-      }
-      
-      // The response from VoltAgent should ALWAYS be a string
-      // If it's an object, something is wrong
-      if (typeof response === 'string') {
-        // Additional safety check for function definitions
-        if (!isResponseSafe(response)) {
-          console.warn('Response contains function definitions, sanitizing:', response.substring(0, 100));
-          finalResponse = sanitizeResponse(response, { lastUserMessage: cleanMessage });
-        } else {
-          finalResponse = response;
-        }
-      } else {
-        console.error('ERROR: VoltAgent returned non-string response:', response);
-        // Emergency fallback - should never happen
-        if (response && typeof response === 'object') {
-          // Try to extract any string content
-          if ('content' in response && typeof response.content === 'string') {
-            finalResponse = sanitizeResponse(response.content, { lastUserMessage: cleanMessage });
-          } else if ('response' in response && typeof response.response === 'string') {
-            finalResponse = sanitizeResponse(response.response, { lastUserMessage: cleanMessage });
-          } else {
-            console.error('Cannot extract string from response object');
-            finalResponse = 'שגיאה בפורמט התגובה';
-          }
-        } else {
-          finalResponse = 'שגיאה בפורמט התגובה';
-        }
+
+      let finalResponse = response;
+
+      if (!isResponseSafe(finalResponse)) {
+        console.warn('Response contains function definitions, sanitizing:', finalResponse.substring(0, 100));
+        finalResponse = sanitizeResponse(finalResponse, { lastUserMessage: cleanMessage });
       }
       
       // Store in conversation history
@@ -268,7 +266,9 @@ export class SweatBotAgent {
       return this.sanitizeOutput(finalResponse);
     } catch (error) {
       console.error('SweatBot chat error:', error);
-      console.error('Error stack:', error.stack);
+      if (error instanceof Error) {
+        console.error('Error stack:', error.stack);
+      }
 
       // No hardcoded fallbacks - let the user know there's a technical issue
       return 'מצטער, יש בעיה טכנית כרגע. אנא נסה שוב בעוד רגע או בדוק את החיבור לשירות.';
@@ -320,56 +320,6 @@ export class SweatBotAgent {
     } catch (error) {
       console.error('SweatBot stream error:', error);
       yield 'מצטער, יש בעיה טכנית כרגע. נסה שוב בעוד רגע.';
-    }
-  }
-  
-  private async executeTools(toolCalls: any[]): Promise<string | null> {
-    try {
-      // Execute the first tool call
-      const toolCall = toolCalls[0];
-      if (!toolCall) return null;
-      
-      console.log('Executing tool:', toolCall.name, 'with args:', toolCall.args);
-      
-      // Find and execute the tool
-      const tools = this.getTools();
-      const tool = tools.find((t: any) => t.name === toolCall.name);
-      if (tool && tool.execute) {
-        const result = await tool.execute(toolCall.args);
-        console.log('Tool execution result:', result);
-        return typeof result === 'string' ? result : JSON.stringify(result);
-      }
-      
-      console.warn('Tool not found or has no execute method:', toolCall.name);
-      return null;
-    } catch (error) {
-      console.error('Tool execution error:', error);
-      return null;
-    }
-  }
-  
-  private getToolConfirmationMessage(toolName: string, args: any): string {
-    // Generate a natural response based on the tool that was called
-    switch (toolName) {
-      case 'exerciseLogger':
-        const exercise = args?.exercise_name || 'התרגיל';
-        const count = args?.count || args?.repetitions || '';
-        return `רשמתי ${count} ${exercise}! כל הכבוד! 💪`;
-      
-      case 'statsRetriever':
-        return 'מביא את הסטטיסטיקות שלך...';
-      
-      case 'goalSetter':
-        return 'מגדיר את היעד החדש שלך...';
-      
-      case 'progressAnalyzer':
-        return 'מנתח את ההתקדמות שלך...';
-      
-      case 'dataManager':
-        return 'מעדכן את הנתונים...';
-      
-      default:
-        return 'מבצע את הפעולה...';
     }
   }
   
@@ -504,7 +454,7 @@ export class SweatBotAgent {
             period: { type: 'string', description: 'תקופה: week/month/year' }
           }
         },
-        execute: async (params: any) => {
+        execute: async (_params: any) => {
           try {
             const token = await getOrCreateGuestToken();
 
@@ -554,7 +504,7 @@ export class SweatBotAgent {
             period: { type: 'string', description: 'תקופה: today/week/month/all_time', default: 'month' }
           }
         },
-        execute: async (params: any) => {
+        execute: async (_params: any) => {
           try {
             const token = await getOrCreateGuestToken();
 

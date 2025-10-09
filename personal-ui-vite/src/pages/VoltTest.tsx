@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getSweatBotAgent } from '../agent';
 
 /**
@@ -45,9 +45,10 @@ export default function VoltTest() {
       const result = await agent.chat(input);
       console.log('Volt Agent response:', result);
       setResponse(result);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Volt Agent error:', err);
-      setError(err.message || 'Failed to get response');
+      const message = err instanceof Error ? err.message : 'Failed to get response';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

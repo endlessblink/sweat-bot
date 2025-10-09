@@ -100,6 +100,155 @@ docker exec sweatbot_redis redis-cli -a sweatbot_redis_pass FLUSHALL
 
 **Why this matters**: False claims of functionality lead to wasted time, broken deployments, and loss of trust. Always verify through automated E2E testing before making any claims about the system's operational status.
 
+## 🚨 CRITICAL: VERIFY BEFORE BUILDING NEW FEATURES 🚨
+
+**ABSOLUTE RULE: NEVER build new features until existing functionality is 100% verified working.**
+
+### Pre-Feature Development Checklist
+
+Before building ANY new feature, you MUST verify these core functions work correctly:
+
+✅ **Chat History Verification**:
+- [ ] Login as user (noamnau / Noam123!)
+- [ ] Send 5 different messages
+- [ ] Verify each message saves to MongoDB
+- [ ] Reload page and verify history persists
+- [ ] Load old conversation and verify it displays
+- [ ] Check MongoDB directly: `docker exec sweatbot_mongodb mongosh --eval "db.sweatbot_conversations.find().pretty()"`
+- [ ] Test with Hebrew messages
+
+✅ **Natural Conversation Verification**:
+- [ ] Send "שלום" 3 times - must get DIFFERENT responses (not hardcoded)
+- [ ] Send "עשיתי 20 סקוואטים" - verify exercise logs correctly
+- [ ] Send "כמה נקודות יש לי" - verify shows REAL statistics (not demo data)
+- [ ] Send non-fitness question ("מה השעה?") - verify polite decline
+- [ ] Verify NO hardcoded templates appear
+- [ ] Verify NO automatic UI components unless requested
+
+✅ **Statistics Verification**:
+- [ ] Reset all data: `python backend/scripts/reset_all_data.py`
+- [ ] Log 5 different exercises through chat
+- [ ] Verify points calculated correctly
+- [ ] Verify statistics panel shows real data (not demo/placeholder)
+- [ ] Test clear statistics button
+- [ ] Reload page and verify data persists
+- [ ] Check PostgreSQL: `psql -h localhost -p 8001 -U fitness_user -d hebrew_fitness -c "SELECT * FROM exercises;"`
+
+### Enforcement
+
+**BEFORE starting ANY new feature task:**
+1. Run verification checklist above
+2. Document results (screenshots + logs)
+3. Fix ANY issues found
+4. Only proceed when ALL checks pass
+
+**IF existing functionality is broken:**
+- STOP feature development immediately
+- Create URGENT bug fix task
+- Fix the regression
+- Re-verify everything works
+- THEN continue with features
+
+**Priority Order:**
+1. **Verify existing features work** (chat, stats, history)
+2. **Build Voice Control** (hands-free is essential for fitness)
+3. **Build PWA/Mobile App** (mobile-first for fitness tracking)
+4. **Build new features** (gamification, nutrition, etc.)
+
+**NEVER:**
+- Build features on top of broken functionality
+- Assume existing code works without testing
+- Skip verification to "save time"
+- Add complexity before fixing bugs
+
+**This prevents:** Building elaborate features on a broken foundation, wasting time debugging layered issues, loss of user trust from buggy releases.
+
+## 🚨 CRITICAL: UNIFIED DESIGN SYSTEM ENFORCEMENT 🚨
+
+**ABSOLUTE RULE: ALL UI components MUST use the unified design system. NEVER create competing or alternative design systems.**
+
+### Design System Location
+- **Tokens**: `src/design-system/tokens.ts`
+- **Base Components**: `src/design-system/components/base/`
+- **Visual Showcase**: Navigate to `http://localhost:8005/design-system`
+
+### Design System Components Available
+✅ **Base Components** (ALL ready to use):
+- `Button` - Primary action component (variants: primary, secondary, danger, ghost)
+- `Card` - Container component (variants: default, elevated, outlined)
+- `Input` - Text input with RTL support
+- `Avatar` - User/bot avatars (sizes: sm, md, lg, xl)
+- `Badge` - Status indicators (variants: default, primary, success, danger)
+- `IconButton` - Icon-only buttons
+
+### Mandatory Import Pattern
+```typescript
+// ALWAYS import from design system
+import { designTokens } from '../design-system/tokens';
+import { Button, Card, Input } from '../design-system/components/base';
+```
+
+### FORBIDDEN Practices
+❌ **NEVER hardcode design values**:
+```typescript
+// WRONG - Will be REJECTED:
+color: "#FFFFFF"
+padding: "16px"
+fontSize: "14px"
+backgroundColor: "rgb(26, 26, 26)"
+```
+
+✅ **ALWAYS use design tokens**:
+```typescript
+// CORRECT - The ONLY acceptable way:
+color: designTokens.colors.text.primary
+padding: designTokens.spacing[4]
+fontSize: designTokens.typography.fontSize.sm
+backgroundColor: designTokens.colors.background.secondary
+```
+
+### Token Categories
+**Available token categories** (see `/design-system` for complete list):
+- `designTokens.colors.*` - All colors (background, text, border, interactive, semantic)
+- `designTokens.typography.*` - Font families, sizes, weights, line heights
+- `designTokens.spacing.*` - Spacing scale (0-16 based on 4px grid)
+- `designTokens.borderRadius.*` - Border radius values
+- `designTokens.shadows.*` - Shadow definitions
+- `designTokens.layout.*` - Layout dimensions
+- `designTokens.transitions.*` - Transition timings
+
+### Enforcement Rules
+1. **NO hardcoded values** - Any PR with hardcoded colors/spacing/typography will be REJECTED
+2. **NO competing design systems** - Only ONE design system (`src/design-system/`)
+3. **NO inline color values** - Use tokens exclusively
+4. **NO CSS variables** unless they reference design tokens
+5. **NO custom spacing** - Use the spacing scale (1-16)
+
+### How to Use the Design System
+1. **View components**: Navigate to `http://localhost:8005/design-system`
+2. **Copy code**: Click any code snippet to copy to clipboard
+3. **Import tokens**: Always import `designTokens` first
+4. **Use components**: Import and use base components when possible
+5. **Check showcase**: If unsure, check the design system showcase
+
+### Component Creation Rules
+When creating NEW components:
+1. **Check if base component exists** - Don't recreate Button, Card, etc.
+2. **Use design tokens ONLY** - Never hardcode values
+3. **Compose from base components** - Build on existing components
+4. **Add to design system** - If it's reusable, add it to `/design-system/components/`
+5. **Update showcase** - Add examples to `/design-system` page
+
+### Visual Design System Showcase
+Access at: `http://localhost:8005/design-system`
+- View all colors, typography, spacing
+- See all components with variants
+- Copy code snippets with one click
+- Interactive component examples
+- Complete usage guidelines
+
+**This is the SINGLE SOURCE OF TRUTH for all UI design. No exceptions.**
+
 ## 🚨 CRITICAL: Environment Configuration
 
 **NEVER modify Windows Claude Desktop configuration from WSL2**

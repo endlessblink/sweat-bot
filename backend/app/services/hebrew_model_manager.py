@@ -9,6 +9,8 @@ from typing import Optional, Dict, Any, List
 import logging
 import sys
 from pathlib import Path
+from datetime import datetime
+from .workout_variety_service import WorkoutVarietyService
 import json
 import base64
 import httpx
@@ -44,6 +46,8 @@ class HebrewModelManager:
             self.chat_models = {}
             self.is_initialized = False
             self.initialized = False
+            # Initialize workout variety service for better exercise suggestions
+            self.workout_variety = WorkoutVarietyService()
             
             # Initialize available models
             self.available_models = {
@@ -109,14 +113,9 @@ class HebrewModelManager:
             self.whisper_model = MockWhisperModel()
     
     async def _load_exercise_parser(self):
-        """Load Hebrew exercise parser"""
-        try:
-            from hebrew_workout_parser import HebrewWorkoutParser
-            self.exercise_parser = HebrewWorkoutParser()
-            logger.info("✓ Hebrew exercise parser loaded")
-        except ImportError:
-            logger.warning("Using mock exercise parser")
-            self.exercise_parser = MockExerciseParser()
+        """Exercise parser disabled - AI handles exercise understanding naturally"""
+        self.exercise_parser = None
+        logger.info("✓ Exercise parser disabled - AI handles exercises naturally")
     
     async def _load_tts_service(self):
         """Load Hebrew TTS service"""
@@ -220,6 +219,24 @@ class HebrewModelManager:
         Supports both Gemini API and Ollama models
         """
         try:
+            # Check if this is a workout break request for variety handling
+            if self.is_workout_break_request(message):
+                logger.info(f"Detected workout break request: {message[:50]}...")
+                
+                # Generate varied workout suggestion
+                varied_response = self.generate_varied_workout_suggestion(message, context)
+                
+                if varied_response:
+                    return {
+                        "response": varied_response,
+                        "model": model,
+                        "model_used": model,
+                        "user_id": user_id,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "varied_workout": True,  # Flag to indicate varied workout was used
+                        "confidence": 0.95
+                    }
+            
             if model not in self.available_models:
                 logger.warning(f"Unknown model: {model}, falling back to openai-gpt-4o-mini")
                 model = "openai-gpt-4o-mini"
@@ -475,11 +492,18 @@ class HebrewModelManager:
 # לתיעוד תרגילים: תגובה קצרה ומעודדת בלבד
 # להצעות אימון: השתמש בידע הרחב שלך ותן מגוון אמיתי של תרגילים
 
+# חובה: הימנע מתבנית קבועה של אותם 4 תרגילים תמיד!
+# תמיד תספק מגוון אמיתי של תרגילים שונים
+# השתמש בתרגילים כמו: ספרינטים, ברפים, קטרבל סווינג, דדליפט, לאנג'ים, מישיכות, דיפים, הרמות ברכיים, סיבובי רוסי, ועוד
+# שלב בין קרדיו, חוזק עליון, חוזק תחתון, ליבה, וגמישות
+
 דוגמאות לתגובות אסורות (לעולם אל תכתב כך):
 ❌ "איזה קבוצת שרירים ריכזת? איך הרגשת? באיזה רמת קושי?"
 ❌ "ספר לי יותר על האימון - איזה ציוד השתמשת?"
 ❌ "מה היו התחושות שלך? האם זה היה מאתגר?"
 ❌ כל שאלה שהיא כשהמשתמש רק רוצה לתעד תרגיל
+❌ אל תשתמש בתבנית קבועה: "סקוואטים - 15 חזרות, שכיבות סמיכה - 10 חזרות, קפיצות כוכבים - 30 שניות, פלנק - 30 שניות"
+❌ אל תחזור על אותם 4-5 תרגילים תמיד - השתמש במגוון אמיתי!
 
 הקשר אישי:"""
         
@@ -692,6 +716,86 @@ class HebrewModelManager:
             "tts_loaded": self.tts_service is not None
         }
     
+    def is_workout_break_request(self, text: str) -> bool:
+        """
+        Detect if user is asking for workout break exercises
+        
+        Args:
+            text: User's Hebrew text
+            
+        Returns:
+            True if asking for break workout suggestions
+        """
+        break_keywords = [
+            "הפסקה", "פסקה", "דקות", "5 דקות", "עשר דקות", "חמש דקות",
+            "תרגילים להפסקה", "אימון קצר", "תרגילי הפסקה",
+            "מה לעשות בהפסקה", "תנו לי רעיונות", "תרגילים למשרד",
+            "תרגילים לבית", "אימון ביתי", "אימון קצר"
+        ]
+        
+        text_lower = text.lower()
+        return any(keyword in text_lower for keyword in break_keywords)
+    
+    def extract_break_duration(self, text: str) -> int:
+        """
+        Extract workout break duration from text
+        
+        Args:
+            text: User's Hebrew text
+            
+        Returns:
+            Duration in minutes (default 5)
+        """
+        import re
+        
+        # Look for number patterns followed by "דקות" or "דק"
+        numbers = re.findall(r'\d+', text)
+        
+        if numbers:
+            duration = int(numbers[0])
+            # Keep reasonable bounds
+            if 1 <= duration <= 60:
+                return duration
+        
+        return 5  # Default to 5 minutes
+    
+    def generate_varied_workout_suggestion(self, text: str, user_context: Dict[str, Any] = None) -> str:
+        """
+        Generate varied workout suggestion for break requests
+        
+        Args:
+            text: User's Hebrew text requesting break exercises
+            user_context: User's fitness context
+            
+        Returns:
+            Varied workout suggestion in proper Hebrew
+        """
+        try:
+            # Extract duration from text
+            duration = self.extract_break_duration(text)
+            
+            # Generate varied workout using the variety service
+            workout_data = self.workout_variety.get_varied_break_workout(duration, user_context)
+            
+            # Fix any Hebrew grammar mistakes
+            corrected_response, corrections = self.workout_variety.validate_hebrew_grammar(
+                workout_data["hebrew_response"]
+            )
+            
+            if corrections:
+                logger.info(f"Applied Hebrew corrections: {corrections}")
+            
+            return corrected_response
+            
+        except Exception as e:
+            logger.error(f"Error generating varied workout suggestion: {e}")
+            
+            # Fallback to simple response with proper Hebrew
+            if "5" in str(self.extract_break_duration(text)):
+                return f"מצוין! הנה רעיון להפסקה פעילה של 5 דקות שתעניג לכם ותרענן אתכם:\n\n🏃‍♂️ **קפיצות כוכבים** - 30 שניות\n💪 **סקוואטים** - 15 חזרות\n🎯 **פלנק** - 30 שניות\n🏃‍♂️ **ריצה במקום** - 60 שניות\n🧘‍♀️ **מתיחות קלות** - 60 שניות\n\nתעשו הפסקה קצרה בין התרגילים אם צריך, ותיהנו מהאנרגיה! 🌟💪"
+            else:
+                return f"בהחלט! הנה תוכנית אימונים מגוונת לכם:\n\n🏃‍♂️ **התחממות** - 5 דקות קפיצות קלות\n💪 **חוזק עליון** - 5 דקות שכיבות סמיכה ולחיצות\n🦵 **חוזק תחתון** - 5 דקות סקוואטים ולאנג'ים\n🎯 **ליבה** - 3 דקות פלנק וכפיפות בטן\n🧘‍♀️ **התקררות** - 2 דקות מתיחות\n\nתיהנו מהאימון! 💪🌟"
+    
     async def cleanup(self):
         """Cleanup resources on shutdown"""
         logger.info("Cleaning up Hebrew models...")
@@ -756,6 +860,104 @@ class MockExerciseParser:
                 result["count"] = 1  # Default to 1 rep if only weight specified
         
         return result
+    
+    def is_workout_break_request(self, text: str) -> bool:
+        """
+        Detect if user is asking for workout break exercises
+        
+        Args:
+            text: User's Hebrew text
+            
+        Returns:
+            True if asking for break workout suggestions
+        """
+        break_keywords = [
+            "הפסקה", "פסקה", "דקות", "5 דקות", "עשר דקות", "חמש דקות",
+            "תרגילים להפסקה", "אימון קצר", "תרגילי הפסקה",
+            "מה לעשות בהפסקה", "תנו לי רעיונות", "תרגילים למשרד",
+            "תרגילים לבית", "אימון ביתי", "אימון קצר"
+        ]
+        
+        text_lower = text.lower()
+        return any(keyword in text_lower for keyword in break_keywords)
+    
+    def extract_break_duration(self, text: str) -> int:
+        """
+        Extract break duration in minutes from text
+        
+        Args:
+            text: User's Hebrew text
+            
+        Returns:
+            Duration in minutes (default 5 if not found)
+        """
+        import re
+        
+        # Look for patterns like "5 דקות", "עשר דקות", "חמש דקות"
+        duration_patterns = [
+            r'(\d+)\s*דקות',
+            r'חמש\s*דקות',
+            r'חמישה\s*דקות',
+            r'עשר\s*דקות',
+            r'עשרה\s*דקות',
+            r'רבע\s*שעה',  # 15 minutes
+            r'חצי\s*שעה',  # 30 minutes
+        ]
+        
+        text_lower = text.lower()
+        
+        for pattern in duration_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                if match.group(1):  # Numeric match
+                    return int(match.group(1))
+                elif "חמש" in match.group() or "חמישה" in match.group():
+                    return 5
+                elif "עשר" in match.group() or "עשרה" in match.group():
+                    return 10
+                elif "רבע" in match.group():
+                    return 15
+                elif "חצי" in match.group():
+                    return 30
+        
+        return 5  # Default to 5 minutes
+    
+    def generate_varied_workout_suggestion(self, text: str, user_context: Dict[str, Any] = None) -> str:
+        """
+        Generate varied workout suggestion for break requests
+        
+        Args:
+            text: User's Hebrew text requesting break exercises
+            user_context: User's fitness context
+            
+        Returns:
+            Varied workout suggestion in proper Hebrew
+        """
+        try:
+            # Extract duration from text
+            duration = self.extract_break_duration(text)
+            
+            # Generate varied workout using the variety service
+            workout_data = self.workout_variety.get_varied_break_workout(duration, user_context)
+            
+            # Fix any Hebrew grammar mistakes
+            corrected_response, corrections = self.workout_variety.validate_hebrew_grammar(
+                workout_data["hebrew_response"]
+            )
+            
+            if corrections:
+                logger.info(f"Applied Hebrew corrections: {corrections}")
+            
+            return corrected_response
+            
+        except Exception as e:
+            logger.error(f"Error generating varied workout suggestion: {e}")
+            
+            # Fallback to simple response with proper Hebrew
+            if "5" in str(self.extract_break_duration(text)):
+                return f"מצוין! הנה רעיון להפסקה פעילה של 5 דקות שתעניג לכם ותרענן אתכם:\n\n🏃‍♂️ **קפיצות כוכבים** - 30 שניות\n💪 **סקוואטים** - 15 חזרות\n🎯 **פלנק** - 30 שניות\n🏃‍♂️ **ריצה במקום** - 60 שניות\n🧘‍♀️ **מתיחות קלות** - 60 שניות\n\nתעשו הפסקה קצרה בין התרגילים אם צריך, ותיהנו מהאנרגיה! 🌟💪"
+            else:
+                return f"בהחלט! הנה תוכנית אימונים מגוונת לכם:\n\n🏃‍♂️ **התחממות** - 5 דקות קפיצות קלות\n💪 **חוזק עליון** - 5 דקות שכיבות סמיכה ולחיצות\n🦵 **חוזק תחתון** - 5 דקות סקוואטים ולאנג'ים\n🎯 **ליבה** - 3 דקות פלנק וכפיפות בטן\n🧘‍♀️ **התקררות** - 2 דקות מתיחות\n\nתיהנו מהאימון! 💪🌟"
 
 class MockTTSService:
     """Mock TTS service for development"""

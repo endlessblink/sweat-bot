@@ -101,16 +101,16 @@ export class GroqProvider {
       
     } catch (error) {
       console.error('Groq API error:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
       
-      // Check for specific error types
-      if (error.message?.includes('API key')) {
+      if (err.message?.includes('API key')) {
         throw new Error('Invalid Groq API key');
       }
-      if (error.message?.includes('rate limit')) {
+      if (err.message?.includes('rate limit')) {
         throw new Error('Groq API rate limit exceeded');
       }
       
-      throw new Error(`Groq API failed: ${error.message}`);
+      throw new Error(`Groq API failed: ${err.message}`);
     }
   }
   
@@ -153,7 +153,7 @@ export class GroqProvider {
       yield { content: '', done: true };
     } catch (error) {
       console.error('Groq stream error:', error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
   
@@ -164,11 +164,8 @@ export class GroqProvider {
       function: {
         name: tool.name,
         description: tool.description,
-        parameters: {
-          type: 'object',
-          properties: tool.parameters || {},
-          required: tool.required || []
-        }
+        // tool.parameters is already a complete JSON Schema object
+        parameters: tool.parameters
       }
     }));
   }

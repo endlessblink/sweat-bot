@@ -64,6 +64,8 @@ export default function SweatBotChat({
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [rewardModalOpen, setRewardModalOpen] = useState(false);
+  const [reward, setReward] = useState<{ title: string; points: number } | null>(null);
   const [internalStatsPanel, setInternalStatsPanel] = useState(false);
   const [internalHistoryPanel, setInternalHistoryPanel] = useState(false);
   const showStatsPanel = statsPanelControl ? statsPanelControl.isOpen : internalStatsPanel;
@@ -74,6 +76,56 @@ export default function SweatBotChat({
   const [agent] = useState(() => getSweatBotAgent({ userId: 'personal' }));
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    
+    const connectWebSocket = async () => {
+      try {
+        // Get authentication token first
+        const { getOrCreateGuestToken } = await import('../utils/auth');
+        const token = await getOrCreateGuestToken();
+        
+        // Connect to WebSocket with token as query parameter
+        const wsUrl = `${import.meta.env.VITE_BACKEND_URL.replace('http', 'ws')}/ws?token=${token}`;
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => {
+          console.log('[SweatBotChat] WebSocket connected');
+        };
+
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          switch (data.type) {
+            case 'goal_completed':
+              setReward({ title: data.data.title, points: data.data.points });
+              setRewardModalOpen(true);
+              break;
+            default:
+              break;
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('[SweatBotChat] WebSocket disconnected');
+        };
+
+        ws.onerror = (error) => {
+          console.error('[SweatBotChat] WebSocket error:', error);
+        };
+      } catch (error) {
+        console.error('[SweatBotChat] Failed to connect WebSocket:', error);
+      }
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (ws) {
+        ws.close();
+      }
+    };
+  }, []);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -533,6 +585,15 @@ export default function SweatBotChat({
             />
           </div>
         </div>
+      )}
+
+      {rewardModalOpen && reward && (
+        <RewardModal
+          isOpen={rewardModalOpen}
+          onClose={() => setRewardModalOpen(false)}
+          title={reward.title}
+          points={reward.points}
+        />
       )}
 
       <div className={`flex w-full bg-black overflow-hidden ${hideHeader ? 'h-full' : 'h-[600px] border border-neutral-800 rounded-lg'}`}>

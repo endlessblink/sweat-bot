@@ -25,7 +25,7 @@ export class ResponseSanitizer {
   /**
    * Minimal cleanup - trust the AI's response
    */
-  static cleanResponse(response: string, context?: any): string {
+  static cleanResponse(response: string, _context?: unknown): string {
     if (!response || typeof response !== 'string') {
       return response;
     }

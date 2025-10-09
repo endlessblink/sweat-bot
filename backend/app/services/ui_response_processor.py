@@ -158,14 +158,21 @@ class UIResponseProcessor:
             exercise_count = int(exercise_match.group(1))
             exercise_type = exercise_match.group(2)
             
-            # Map Hebrew exercise names
-            exercise_mapping = {
-                'סקוואטים': 'Squats',
-                'שכיבות': 'Push-ups', 
-                'דחיפות': 'Push-ups',
-                'ריצה': 'Running'
-            }
-            exercise_name = exercise_mapping.get(exercise_type, exercise_type)
+            # Dynamic exercise mapping - no hardcoded limitations
+            # Use the exercise name as-is or get from dynamic mapping service
+            try:
+                from app.services.exercise_integration_service import exercise_integration_service
+                # Try to find exercise in dynamic mapping
+                for hebrew_name, mapping in exercise_integration_service.exercise_mappings.items():
+                    if hebrew_name in exercise_type or exercise_type in hebrew_name:
+                        exercise_name = mapping["name"]
+                        break
+                else:
+                    # Fallback to capitalized Hebrew name
+                    exercise_name = exercise_type.capitalize()
+            except:
+                # Ultimate fallback
+                exercise_name = exercise_type.capitalize()
         
         if points_match:
             points_earned = int(points_match.group(1))
@@ -188,7 +195,6 @@ class UIResponseProcessor:
         # This method is deprecated - the AI should provide workout suggestions naturally
         # without hardcoded UI component generation
         return None
-        }
     
     @classmethod
     def process_agent_response(

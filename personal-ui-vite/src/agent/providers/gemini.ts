@@ -73,16 +73,16 @@ export class GeminiProvider {
       
     } catch (error) {
       console.error('Gemini API error:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
       
-      // Check for specific error types
-      if (error.message?.includes('API key')) {
+      if (err.message?.includes('API key')) {
         throw new Error('Invalid Gemini API key');
       }
-      if (error.message?.includes('quota')) {
+      if (err.message?.includes('quota')) {
         throw new Error('Gemini API quota exceeded');
       }
       
-      throw new Error(`Gemini API failed: ${error.message}`);
+      throw new Error(`Gemini API failed: ${err.message}`);
     }
   }
   
@@ -118,7 +118,7 @@ export class GeminiProvider {
       yield { content: '', done: true };
     } catch (error) {
       console.error('Gemini stream error:', error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
   
@@ -128,11 +128,8 @@ export class GeminiProvider {
       functionDeclarations: tools.map(tool => ({
         name: tool.name,
         description: tool.description,
-        parameters: {
-          type: 'object',
-          properties: tool.parameters || {},
-          required: tool.required || []
-        }
+        // tool.parameters is already a complete JSON Schema object
+        parameters: tool.parameters
       }))
     }];
   }
