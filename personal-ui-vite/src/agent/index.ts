@@ -70,14 +70,14 @@ export class SweatBotAgent {
   private initializeProviders() {
     const providers: any = {};
     
-    // OpenAI - Now primary provider for reliable tool calling (GPT-5-mini)
+    // OpenAI - Now primary provider for reliable tool calling (GPT-4o-mini)
     if (import.meta.env.VITE_OPENAI_API_KEY) {
       try {
         providers.openai = new OpenAIProvider({
           apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-          model: 'gpt-5-mini' // Upgraded to GPT-5-mini for enhanced reasoning
+          model: 'gpt-4o-mini' // Fast, reliable, and cost-effective
         });
-        console.log('✅ OpenAI provider initialized (PRIMARY - GPT-5-mini)');
+        console.log('✅ OpenAI provider initialized (PRIMARY - GPT-4o-mini)');
       } catch (error) {
         console.error('Failed to initialize OpenAI provider:', error);
       }

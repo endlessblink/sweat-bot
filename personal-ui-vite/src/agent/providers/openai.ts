@@ -53,10 +53,11 @@ export class OpenAIProvider {
       const model = this.config.model || 'gpt-4o-mini';
       const isGPT5 = isGPT5Model(model);
 
-      // For GPT-5 models, use the new Responses API
-      if (isGPT5) {
-        return await this.chatGPT5(prompt, options);
-      }
+      // For GPT-5 models, use standard Chat Completions API (not Responses API)
+      // GPT-5 doesn't support tools yet via Responses API, so treat like GPT-4
+      // if (isGPT5) {
+      //   return await this.chatGPT5(prompt, options);
+      // }
 
       // Build messages array with system prompt (for GPT-4 and earlier)
       const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
