@@ -76,19 +76,29 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
    * Start recording
    */
   const startRecording = useCallback(async () => {
+    console.log('🎤 [useVoiceInput] ===== START RECORDING CALLED =====');
     try {
       setError(null);
       setTranscript(null);
 
       // Check permission first
       if (hasPermission === null) {
+        console.log('🎤 [useVoiceInput] No permission yet, requesting...');
         const granted = await requestPermission();
-        if (!granted) return;
+        if (!granted) {
+          console.log('❌ [useVoiceInput] Permission denied');
+          return;
+        }
+        console.log('✅ [useVoiceInput] Permission granted');
       }
 
       // Start recording
+      console.log('🎤 [useVoiceInput] Calling audioRecorder.startRecording()...');
       await audioRecorder.startRecording();
+      console.log('✅ [useVoiceInput] audioRecorder.startRecording() completed');
+
       setIsRecording(true);
+      console.log('✅ [useVoiceInput] State set to isRecording=true');
 
       // Start duration counter
       recordingStartTimeRef.current = Date.now();
@@ -99,9 +109,9 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
         }
       }, 100); // Update every 100ms
 
-      console.log('[useVoiceInput] Recording started');
+      console.log('✅ [useVoiceInput] Recording fully started and ready');
     } catch (err) {
-      console.error('[useVoiceInput] Failed to start recording:', err);
+      console.error('❌ [useVoiceInput] Failed to start recording:', err);
       setError('Failed to start recording');
       if (onError) onError(err as Error);
     }
@@ -111,7 +121,30 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
    * Stop recording and transcribe
    */
   const stopRecording = useCallback(async () => {
+    console.log('🛑 [useVoiceInput] ===== STOP RECORDING CALLED =====');
     try {
+      // Check if actually recording
+      const isCurrentlyRecording = audioRecorder.isRecording();
+      console.log(`🛑 [useVoiceInput] audioRecorder.isRecording() = ${isCurrentlyRecording}`);
+
+      if (!isCurrentlyRecording) {
+        console.warn('⚠️ [useVoiceInput] Stop called but not recording yet - waiting 200ms...');
+        // Wait a bit for recording to start
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Check again
+        const isRecordingNow = audioRecorder.isRecording();
+        console.log(`🛑 [useVoiceInput] After wait, audioRecorder.isRecording() = ${isRecordingNow}`);
+
+        if (!isRecordingNow) {
+          console.warn('❌ [useVoiceInput] Still not recording - cancelling');
+          setIsRecording(false);
+          setDuration(0);
+          return;
+        }
+      }
+
+      console.log('✅ [useVoiceInput] Recording confirmed, proceeding to stop...');
       setIsRecording(false);
 
       // Stop duration counter
@@ -237,11 +270,15 @@ export function usePushToTalk(options: UseVoiceInputOptions = {}) {
   const voiceInput = useVoiceInput(options);
 
   const handlePressStart = useCallback(async () => {
+    console.log('👆 [usePushToTalk] BUTTON PRESSED (onMouseDown/onTouchStart)');
     await voiceInput.startRecording();
+    console.log('👆 [usePushToTalk] startRecording() completed');
   }, [voiceInput]);
 
   const handlePressEnd = useCallback(async () => {
+    console.log('👇 [usePushToTalk] BUTTON RELEASED (onMouseUp/onTouchEnd)');
     await voiceInput.stopRecording();
+    console.log('👇 [usePushToTalk] stopRecording() completed');
   }, [voiceInput]);
 
   return {

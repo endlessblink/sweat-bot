@@ -1,0 +1,160 @@
+# Achievements Configuration
+# Defines unlockable achievements and their rewards
+
+version: "3.0"
+last_updated: "2025-01-10"
+
+achievements:
+  # Beginner Achievements
+  first_workout:
+    id: "first_workout"
+    name: "First Steps"
+    name_he: "צעדים ראשונים"
+    description: "Complete your first workout"
+    description_he: "השלם את האימון הראשון שלך"
+    points: 100
+    icon: "🏁"
+    category: beginner
+    condition: "total_workouts == 1"
+    enabled: true
+
+  first_week:
+    id: "first_week"
+    name: "Week Warrior"
+    name_he: "לוחם שבוע"
+    description: "Maintain a 7-day workout streak"
+    description_he: "שמור על רצף של 7 ימי אימון"
+    points: 300
+    icon: "🔥"
+    category: beginner
+    condition: "streak_days >= 7"
+    enabled: true
+
+  century_club:
+    id: "century_club"
+    name: "Century Club"
+    name_he: "מועדון המאה"
+    description: "Complete 100 reps in a single exercise"
+    description_he: "השלם 100 חזרות בתרגיל אחד"
+    points: 200
+    icon: "💯"
+    category: beginner
+    condition: "max_reps_single_exercise >= 100"
+    enabled: true
+
+  # Intermediate Achievements
+  thousand_points:
+    id: "thousand_points"
+    name: "Point Master"
+    name_he: "אמן הנקודות"
+    description: "Earn 1,000 total points"
+    description_he: "צבור 1,000 נקודות בסך הכל"
+    points: 500
+    icon: "⭐"
+    category: intermediate
+    condition: "total_points >= 1000"
+    enabled: true
+
+  strength_master:
+    id: "strength_master"
+    name: "Strength Master"
+    name_he: "אמן הכוח"
+    description: "Lift 100kg in a single exercise"
+    description_he: "הרם 100 ק\"ג בתרגיל אחד"
+    points: 400
+    icon: "💪"
+    category: intermediate
+    condition: "max_weight_lifted >= 100"
+    enabled: true
+
+  cardio_king:
+    id: "cardio_king"
+    name: "Cardio King"
+    name_he: "מלך האירובי"
+    description: "Run or cycle 50km total"
+    description_he: "רוץ או רכוב 50 ק\"מ בסך הכל"
+    points: 600
+    icon: "👑"
+    category: intermediate
+    condition: "total_distance_km >= 50"
+    enabled: true
+
+  # Advanced Achievements
+  iron_warrior:
+    id: "iron_warrior"
+    name: "Iron Warrior"
+    name_he: "לוחם ברזל"
+    description: "Maintain a 30-day workout streak"
+    description_he: "שמור על רצף של 30 ימי אימון"
+    points: 1000
+    icon: "🛡️"
+    category: advanced
+    condition: "streak_days >= 30"
+    enabled: true
+
+  five_thousand_club:
+    id: "five_thousand_club"
+    name: "Elite Athlete"
+    name_he: "ספורטאי עילית"
+    description: "Earn 5,000 total points"
+    description_he: "צבור 5,000 נקודות בסך הכל"
+    points: 1500
+    icon: "🏆"
+    category: advanced
+    condition: "total_points >= 5000"
+    enabled: true
+
+  workout_champion:
+    id: "workout_champion"
+    name: "Workout Champion"
+    name_he: "אלוף האימונים"
+    description: "Complete 100 total workouts"
+    description_he: "השלם 100 אימונים בסך הכל"
+    points: 2000
+    icon: "🥇"
+    category: advanced
+    condition: "total_workouts >= 100"
+    enabled: true
+
+  # Special Achievements
+  early_bird:
+    id: "early_bird"
+    name: "Early Bird"
+    name_he: "ציפור מוקדמת"
+    description: "Work out before 7 AM"
+    description_he: "התאמן לפני 7 בבוקר"
+    points: 150
+    icon: "🌅"
+    category: special
+    condition: "workout_hour < 7"
+    enabled: true
+
+  night_owl:
+    id: "night_owl"
+    name: "Night Owl"
+    name_he: "ינשוף לילה"
+    description: "Work out after 10 PM"
+    description_he: "התאמן אחרי 10 בערב"
+    points: 150
+    icon: "🦉"
+    category: special
+    condition: "workout_hour >= 22"
+    enabled: true
+
+  consistency_king:
+    id: "consistency_king"
+    name: "Consistency King"
+    name_he: "מלך העקביות"
+    description: "Work out every day for a week"
+    description_he: "התאמן כל יום במשך שבוע"
+    points: 500
+    icon: "👑"
+    category: special
+    condition: "workouts_this_week >= 7"
+    enabled: true
+
+# Achievement categories:
+# - beginner: For new users starting their journey
+# - intermediate: For users building consistency
+# - advanced: For dedicated athletes
+# - special: For unique accomplishments

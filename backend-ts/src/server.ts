@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import Fastify from 'fastify';
 import { AppDataSource } from './config/database';
+import { connectMongoDB, disconnectMongoDB, getMongoDb } from './config/mongodb';
+import { connectRedis, disconnectRedis, getRedisClient } from './config/redis';
 import { serverConfig } from './config/server';
 import authRoutes from './routes/auth';
 import exerciseRoutes from './routes/exercises';
@@ -42,16 +44,42 @@ async function buildServer() {
 
   server.get('/health/detailed', async () => {
     try {
-      // Test database connection
+      // Test PostgreSQL connection
       await AppDataSource.query('SELECT 1');
+
+      // Test MongoDB connection
+      let mongodbStatus = 'disconnected';
+      try {
+        const db = getMongoDb();
+        await db.admin().ping();
+        mongodbStatus = 'connected';
+      } catch (e) {
+        mongodbStatus = 'error';
+      }
+
+      // Test Redis connection
+      let redisStatus = 'disconnected';
+      try {
+        const redis = getRedisClient();
+        await redis.ping();
+        redisStatus = 'connected';
+      } catch (e) {
+        redisStatus = 'error';
+      }
 
       return {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         components: {
-          database: {
+          postgresql: {
             status: 'healthy',
             connection: 'established'
+          },
+          mongodb: {
+            status: mongodbStatus
+          },
+          redis: {
+            status: redisStatus
           },
           server: {
             status: 'healthy',
@@ -158,9 +186,17 @@ async function buildServer() {
 
 async function startServer() {
   try {
-    // Initialize database connection
+    // Initialize PostgreSQL connection
     await AppDataSource.initialize();
-    console.log('✅ Database connected successfully');
+    console.log('✅ PostgreSQL connected successfully');
+
+    // Initialize MongoDB connection
+    await connectMongoDB();
+    console.log('✅ MongoDB connected successfully');
+
+    // Initialize Redis connection
+    await connectRedis();
+    console.log('✅ Redis connected successfully');
 
     // Build and start server
     const server = await buildServer();
@@ -173,6 +209,7 @@ async function startServer() {
     console.log(`🚀 SweatBot TypeScript Backend is running on ${serverConfig.host}:${serverConfig.port}`);
     console.log(`📊 Health check available at http://${serverConfig.host}:${serverConfig.port}/health`);
     console.log(`🔧 Debug mode: ${serverConfig.nodeEnv === 'development'}`);
+    console.log(`📦 Databases: PostgreSQL ✅  MongoDB ✅  Redis ✅`);
 
   } catch (error) {
     console.error('❌ Failed to start server:', error);
@@ -185,7 +222,14 @@ process.on('SIGINT', async () => {
   console.log('🛑 Shutting down gracefully...');
   try {
     await AppDataSource.destroy();
-    console.log('✅ Database connection closed');
+    console.log('✅ PostgreSQL connection closed');
+
+    await disconnectMongoDB();
+    console.log('✅ MongoDB connection closed');
+
+    await disconnectRedis();
+    console.log('✅ Redis connection closed');
+
     process.exit(0);
   } catch (error) {
     console.error('❌ Error during shutdown:', error);

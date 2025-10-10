@@ -22,6 +22,7 @@ from app.api.v1.auth import get_current_user_ws
 from app.api.endpoints import goals
 from app.api import points
 from app.api import points_v2
+from app.api.v3 import points_router as points_v3_router
 from app.websocket.handlers import websocket_endpoint
 from app.websocket.connection_manager import connection_manager, periodic_cleanup
 from app.models.models import User
@@ -53,7 +54,13 @@ async def lifespan(app: FastAPI):
         # Warm up AI models (if needed)
         logger.info("🤖 Warming up AI models...")
         # This would initialize Whisper model in production
-        
+
+        # Initialize Points Engine v3
+        logger.info("📊 Initializing Points Engine v3...")
+        from app.services.points_engine_v3 import points_engine_v3
+        await points_engine_v3.initialize()
+        logger.info("✅ Points Engine v3 initialized")
+
         logger.info("✅ SweatBot API startup complete!")
         
     except Exception as e:
@@ -216,6 +223,7 @@ app.include_router(memory.router, prefix="/api/memory", tags=["memory"])
 app.include_router(profile.router, prefix="/api/v1", tags=["profile"])
 app.include_router(points.router, prefix="/api/points", tags=["points"])
 app.include_router(points_v2.router, prefix="/api/points/v2", tags=["points-v2"])
+app.include_router(points_v3_router, tags=["points-v3"])  # v3 includes prefix in router definition
 app.include_router(goals.router, prefix="/api/goals", tags=["goals"])
 
 # WebSocket endpoint

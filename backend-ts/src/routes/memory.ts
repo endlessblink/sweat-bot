@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { ApiResponse, AuthenticatedUser } from '../types';
 import { authenticate } from '../middleware/auth';
+import { getMongoDb } from '../config/mongodb';
 
 interface ConversationMessage {
   role: 'user' | 'assistant' | 'system';
@@ -16,9 +17,6 @@ interface Session {
   updatedAt: string;
 }
 
-// In-memory storage for conversations (TODO: move to MongoDB)
-const sessions: Map<string, Session> = new Map();
-
 const memoryRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/memory/sessions - Get user's conversation sessions
@@ -27,28 +25,32 @@ const memoryRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     try {
       const userId = (request.user as AuthenticatedUser).id;
+      const db = getMongoDb();
+      const sessionsCollection = db.collection<Session>('sessions');
 
       // Find all sessions for this user
-      const userSessions = Array.from(sessions.values())
-        .filter(session => session.userId === userId)
-        .map(session => ({
-          sessionId: session.sessionId,
-          messageCount: session.messages.length,
-          lastMessage: session.messages[session.messages.length - 1]?.content || '',
-          createdAt: session.createdAt,
-          updatedAt: session.updatedAt
-        }))
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      const userSessions = await sessionsCollection
+        .find({ userId })
+        .sort({ updatedAt: -1 })
+        .toArray();
+
+      const formattedSessions = userSessions.map(session => ({
+        sessionId: session.sessionId,
+        messageCount: session.messages.length,
+        lastMessage: session.messages[session.messages.length - 1]?.content || '',
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt
+      }));
 
       return reply.send({
         success: true,
-        data: userSessions,
+        data: formattedSessions,
         message: 'Sessions retrieved successfully',
         timestamp: new Date().toISOString()
       } as ApiResponse);
     } catch (error) {
       return reply.status(500).send({
-        success: false,
+        success: true,
         error: error instanceof Error ? error.message : 'Failed to retrieve sessions',
         timestamp: new Date().toISOString()
       } as ApiResponse);
@@ -62,8 +64,10 @@ const memoryRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const userId = (request.user as AuthenticatedUser).id;
       const { sessionId } = request.params;
+      const db = getMongoDb();
+      const sessionsCollection = db.collection<Session>('sessions');
 
-      const session = sessions.get(sessionId);
+      const session = await sessionsCollection.findOne({ sessionId });
 
       if (!session) {
         return reply.status(404).send({
@@ -114,28 +118,33 @@ const memoryRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const userId = (request.user as AuthenticatedUser).id;
       const { sessionId, role, content } = request.body;
+      const db = getMongoDb();
+      const sessionsCollection = db.collection<Session>('sessions');
 
-      let session = sessions.get(sessionId);
+      let session = await sessionsCollection.findOne({ sessionId });
+      let messageCount = 0;
 
       if (!session) {
         // Create new session
-        session = {
+        const newSession: Session = {
           sessionId,
           userId,
           messages: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
-        sessions.set(sessionId, session);
-      }
-
-      // Verify session ownership
-      if (session.userId !== userId) {
-        return reply.status(403).send({
-          success: false,
-          error: 'Access denied',
-          timestamp: new Date().toISOString()
-        } as ApiResponse);
+        await sessionsCollection.insertOne(newSession);
+        messageCount = 0;
+      } else {
+        // Verify session ownership
+        if (session.userId !== userId) {
+          return reply.status(403).send({
+            success: false,
+            error: 'Access denied',
+            timestamp: new Date().toISOString()
+          } as ApiResponse);
+        }
+        messageCount = session.messages.length;
       }
 
       // Add message to session
@@ -145,14 +154,19 @@ const memoryRoutes: FastifyPluginAsync = async (fastify) => {
         timestamp: new Date().toISOString()
       };
 
-      session.messages.push(message);
-      session.updatedAt = new Date().toISOString();
+      await sessionsCollection.updateOne(
+        { sessionId },
+        {
+          $push: { messages: message },
+          $set: { updatedAt: new Date().toISOString() }
+        }
+      );
 
       return reply.status(201).send({
         success: true,
         data: {
           sessionId,
-          messageCount: session.messages.length
+          messageCount: messageCount + 1
         },
         message: 'Message stored successfully',
         timestamp: new Date().toISOString()
@@ -173,8 +187,10 @@ const memoryRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const userId = (request.user as AuthenticatedUser).id;
       const { sessionId } = request.params;
+      const db = getMongoDb();
+      const sessionsCollection = db.collection<Session>('sessions');
 
-      const session = sessions.get(sessionId);
+      const session = await sessionsCollection.findOne({ sessionId });
 
       if (!session) {
         return reply.status(404).send({
@@ -192,7 +208,7 @@ const memoryRoutes: FastifyPluginAsync = async (fastify) => {
         } as ApiResponse);
       }
 
-      sessions.delete(sessionId);
+      await sessionsCollection.deleteOne({ sessionId });
 
       return reply.send({
         success: true,

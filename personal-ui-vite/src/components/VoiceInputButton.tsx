@@ -107,10 +107,15 @@ export function VoiceInputButton({
     >
       {/* Main Microphone Button */}
       <button
-        onMouseDown={voiceInput.onPressStart}
-        onMouseUp={voiceInput.onPressEnd}
-        onTouchStart={voiceInput.onPressStart}
-        onTouchEnd={voiceInput.onPressEnd}
+        onClick={async () => {
+          if (voiceInput.isRecording) {
+            console.log('🖱️ [VoiceButton] Click while recording - STOPPING');
+            await voiceInput.stopRecording();
+          } else if (!voiceInput.isProcessing) {
+            console.log('🖱️ [VoiceButton] Click while idle - STARTING');
+            await voiceInput.startRecording();
+          }
+        }}
         disabled={voiceInput.isProcessing}
         aria-label={getAriaLabel()}
         aria-pressed={voiceInput.isRecording}
@@ -166,10 +171,10 @@ export function VoiceInputButton({
           style={{
             color: designTokens.colors.interactive.danger,
             fontSize: designTokens.typography.fontSize.xs,
-            position: 'absolute',
-            bottom: `-${designTokens.spacing[6]}`,
-            left: '0',
-            whiteSpace: 'nowrap',
+            fontWeight: designTokens.typography.fontWeight.medium,
+            maxWidth: '200px',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
           }}
         >
           {voiceInput.error}

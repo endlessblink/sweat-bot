@@ -36,7 +36,12 @@ export class GroqWhisperProvider implements STTProvider {
 
   async transcribe(audioBlob: Blob, language: string = 'he'): Promise<string> {
     const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.mp3');
+    // Use correct file extension based on blob type
+    const fileExt = audioBlob.type.includes('webm') ? 'webm' :
+                    audioBlob.type.includes('ogg') ? 'ogg' :
+                    audioBlob.type.includes('mp4') ? 'm4a' : 'webm';
+    console.log(`[Groq] Sending audio as audio.${fileExt}, type: ${audioBlob.type}`);
+    formData.append('file', audioBlob, `audio.${fileExt}`);
     formData.append('model', 'whisper-large-v3');
     formData.append('language', language);
     formData.append('response_format', 'json');
@@ -77,7 +82,12 @@ export class OpenAIWhisperProvider implements STTProvider {
 
   async transcribe(audioBlob: Blob, language: string = 'he'): Promise<string> {
     const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.mp3');
+    // Use correct file extension based on blob type
+    const fileExt = audioBlob.type.includes('webm') ? 'webm' :
+                    audioBlob.type.includes('ogg') ? 'ogg' :
+                    audioBlob.type.includes('mp4') ? 'm4a' : 'webm';
+    console.log(`[OpenAI] Sending audio as audio.${fileExt}, type: ${audioBlob.type}`);
+    formData.append('file', audioBlob, `audio.${fileExt}`);
     formData.append('model', 'whisper-1');
     formData.append('language', language);
     formData.append('response_format', 'json');
@@ -293,10 +303,33 @@ export class AudioRecorder {
         }
       };
 
-      // Start recording
-      this.mediaRecorder.start(100); // Collect data every 100ms
-      console.log('[AudioRecorder] Recording started with', mimeType);
+      // Wait for recording to actually start
+      await new Promise<void>((resolve, reject) => {
+        if (!this.mediaRecorder) {
+          reject(new Error('MediaRecorder not initialized'));
+          return;
+        }
+
+        // Set up start handler
+        this.mediaRecorder.onstart = () => {
+          console.log('[AudioRecorder] Recording started with', mimeType);
+          resolve();
+        };
+
+        // Set up error handler
+        this.mediaRecorder.onerror = (event) => {
+          console.error('[AudioRecorder] Recording error:', event);
+          reject(new Error('MediaRecorder error'));
+        };
+
+        // Start recording
+        this.mediaRecorder.start(100); // Collect data every 100ms
+
+        // Timeout after 2 seconds
+        setTimeout(() => reject(new Error('Recording start timeout')), 2000);
+      });
     } catch (error) {
+      this.cleanup();
       throw new Error(`Failed to start recording: ${error}`);
     }
   }

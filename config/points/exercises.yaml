@@ -1,0 +1,166 @@
+# Exercise Points Configuration
+# This file defines base points and multipliers for all exercises
+# Changes here will sync to database and apply immediately
+
+version: "3.0"
+last_updated: "2025-01-10"
+
+exercises:
+  # Strength Exercises
+  squat:
+    name: "Squat"
+    name_he: "סקוואט"
+    category: strength
+    base_points: 10
+    multipliers:
+      reps: 1.0      # Points per rep
+      sets: 5.0      # Points per set
+      weight: 0.1    # Points per kg
+    enabled: true
+    description: "Basic squat exercise"
+
+  push_up:
+    name: "Push-up"
+    name_he: "שכיבות סמיכה"
+    category: strength
+    base_points: 8
+    multipliers:
+      reps: 1.0
+      sets: 4.0
+      weight: 0.05
+    enabled: true
+    description: "Standard push-up"
+
+  pull_up:
+    name: "Pull-up"
+    name_he: "משיכות"
+    category: strength
+    base_points: 15
+    multipliers:
+      reps: 1.5
+      sets: 6.0
+      weight: 0.1
+    enabled: true
+    description: "Pull-up or chin-up"
+
+  deadlift:
+    name: "Deadlift"
+    name_he: "דדליפט"
+    category: strength
+    base_points: 20
+    multipliers:
+      reps: 1.2
+      sets: 8.0
+      weight: 0.15
+    enabled: true
+    description: "Barbell deadlift"
+
+  bench_press:
+    name: "Bench Press"
+    name_he: "דחיפות בשכיבה"
+    category: strength
+    base_points: 15
+    multipliers:
+      reps: 1.0
+      sets: 6.0
+      weight: 0.12
+    enabled: true
+    description: "Barbell bench press"
+
+  rope_climb:
+    name: "Rope Climb"
+    name_he: "טיפוסי חבל"
+    category: strength
+    base_points: 25
+    multipliers:
+      reps: 2.0
+      sets: 10.0
+      weight: 0.0
+    enabled: true
+    description: "Rope climbing exercise"
+
+  # Cardio Exercises
+  burpee:
+    name: "Burpee"
+    name_he: "ברפי"
+    category: cardio
+    base_points: 12
+    multipliers:
+      reps: 1.5
+      sets: 5.0
+      weight: 0.0
+    enabled: true
+    description: "Full body burpee"
+
+  running:
+    name: "Running"
+    name_he: "ריצה"
+    category: cardio
+    base_points: 50
+    multipliers:
+      distance_km: 10.0  # Points per km
+      duration_min: 2.0  # Points per minute
+      weight: 0.0
+    enabled: true
+    description: "Running or jogging"
+
+  walking:
+    name: "Walking"
+    name_he: "הליכה"
+    category: cardio
+    base_points: 20
+    multipliers:
+      distance_km: 5.0
+      duration_min: 1.0
+      weight: 0.0
+    enabled: true
+    description: "Walking exercise"
+
+  cycling:
+    name: "Cycling"
+    name_he: "אופניים"
+    category: cardio
+    base_points: 30
+    multipliers:
+      distance_km: 8.0
+      duration_min: 1.5
+      weight: 0.0
+    enabled: true
+    description: "Cycling or stationary bike"
+
+  # Core Exercises
+  plank:
+    name: "Plank"
+    name_he: "פלאנק"
+    category: core
+    base_points: 15
+    multipliers:
+      duration_sec: 0.5  # Points per second
+      sets: 5.0
+      weight: 0.0
+    enabled: true
+    description: "Plank hold"
+
+  sit_up:
+    name: "Sit-up"
+    name_he: "כפיפות בטן"
+    category: core
+    base_points: 5
+    multipliers:
+      reps: 0.8
+      sets: 3.0
+      weight: 0.05
+    enabled: true
+    description: "Basic sit-up"
+
+  abs:
+    name: "Abs"
+    name_he: "בטן"
+    category: core
+    base_points: 8
+    multipliers:
+      reps: 1.0
+      sets: 4.0
+      weight: 0.05
+    enabled: true
+    description: "Abdominal exercises"
