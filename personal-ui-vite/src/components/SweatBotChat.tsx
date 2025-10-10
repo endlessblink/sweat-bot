@@ -8,6 +8,8 @@ import WorkoutCard from './ui/WorkoutCard';
 import WorkoutDetails from './ui/WorkoutDetails';
 import StatsPanel from './ui/StatsPanel';
 import ChatHistorySidebar from './ui/ChatHistorySidebar';
+import { VoiceInputButton } from './VoiceInputButton';
+import RewardModal from './RewardModal';
 import { getSweatBotAgent } from '../agent';
 
 /**
@@ -390,6 +392,17 @@ export default function SweatBotChat({
     }
   };
 
+  // Handle voice input transcription
+  const handleVoiceTranscript = (transcript: string) => {
+    console.log('[SweatBotChat] Voice transcript received:', transcript);
+    // Set the transcript in the input field
+    setMessage(transcript);
+    // Auto-send the message
+    setTimeout(() => {
+      sendMessage();
+    }, 100);
+  };
+
   // Handle UI component interactions
   const handleUIAction = (action: string, params?: any) => {
     // Send the action as a message to trigger bot response
@@ -665,14 +678,14 @@ export default function SweatBotChat({
       
       {/* Input Area */}
       <div className="border-t border-neutral-800 p-4">
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <input
             ref={inputRef}
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="שלח הודעה..."
+            placeholder="שלח הודעה או לחץ על המיקרופון..."
             disabled={isLoading}
             className="flex-1 bg-neutral-950 text-white placeholder-neutral-500 px-3 py-2 rounded-md border border-neutral-800 focus:outline-none focus:border-white text-sm disabled:opacity-50"
             style={{
@@ -681,6 +694,12 @@ export default function SweatBotChat({
               textAlign: 'right',
               unicodeBidi: 'embed'
             }}
+          />
+          {/* Voice Input Button */}
+          <VoiceInputButton
+            onTranscript={handleVoiceTranscript}
+            language="he"
+            size="md"
           />
           <button
             onClick={sendMessage}

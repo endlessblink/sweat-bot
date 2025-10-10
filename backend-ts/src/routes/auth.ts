@@ -117,6 +117,36 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       timestamp: new Date().toISOString()
     } as ApiResponse);
   });
+
+  // POST /auth/guest - Guest authentication (creates temporary user)
+  fastify.post('/guest', async (request, reply) => {
+    try {
+      // Create a guest user with temporary credentials
+      const guestEmail = `guest_${Date.now()}@sweatbot.local`;
+      const guestData: CreateUserRequest = {
+        email: guestEmail,
+        password: Math.random().toString(36).substring(2, 15),
+        username: `guest_${Date.now()}`,
+        fitnessLevel: 'beginner',
+        preferredLanguage: 'he'
+      };
+
+      const result = await authService.register(guestData);
+
+      return reply.status(201).send({
+        success: true,
+        data: result,
+        message: 'Guest user created successfully',
+        timestamp: new Date().toISOString()
+      } as ApiResponse<AuthResponse>);
+    } catch (error) {
+      return reply.status(500).send({
+        success: false,
+        error: error instanceof Error ? error.message : 'Guest authentication failed',
+        timestamp: new Date().toISOString()
+      } as ApiResponse);
+    }
+  });
 };
 
 export default authRoutes;
