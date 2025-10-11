@@ -290,8 +290,9 @@ personal-ui/
 !requirements.txt
 !.nvmrc
 
-# Memories (local AI context only, not in git)
+# AI Context & Agent Files (local only, not in git)
 memories/
+.agent/
 
 # ==========================================
 # Security
