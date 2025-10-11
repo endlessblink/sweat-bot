@@ -101,23 +101,33 @@ const memoryRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // POST /api/memory/message - Store a new message
-  fastify.post<{ Body: { sessionId: string; role: string; content: string } }>('/message', {
+  fastify.post<{ Body: any }>('/message', {
     preHandler: [authenticate],
     schema: {
       body: {
         type: 'object',
-        required: ['sessionId', 'role', 'content'],
+        required: ['sessionId', 'message'],
         properties: {
+          userId: { type: 'string' },
           sessionId: { type: 'string' },
-          role: { type: 'string', enum: ['user', 'assistant', 'system'] },
-          content: { type: 'string' }
+          message: {
+            type: 'object',
+            required: ['role', 'content'],
+            properties: {
+              role: { type: 'string', enum: ['user', 'assistant', 'system'] },
+              content: { type: 'string' },
+              timestamp: { type: 'string' }
+            }
+          }
         }
       }
     }
   }, async (request, reply) => {
     try {
       const userId = (request.user as AuthenticatedUser).id;
-      const { sessionId, role, content } = request.body;
+      const body = request.body as any;
+      const { sessionId, message: messageData } = body;
+      const { role, content } = messageData;
       const db = getMongoDb();
       const sessionsCollection = db.collection<Session>('sessions');
 

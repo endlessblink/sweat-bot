@@ -23,6 +23,7 @@ from app.api.endpoints import goals
 from app.api import points
 from app.api import points_v2
 from app.api.v3 import points_router as points_v3_router
+from app.routes import stt
 from app.websocket.handlers import websocket_endpoint
 from app.websocket.connection_manager import connection_manager, periodic_cleanup
 from app.models.models import User
@@ -225,6 +226,7 @@ app.include_router(points.router, prefix="/api/points", tags=["points"])
 app.include_router(points_v2.router, prefix="/api/points/v2", tags=["points-v2"])
 app.include_router(points_v3_router, tags=["points-v3"])  # v3 includes prefix in router definition
 app.include_router(goals.router, prefix="/api/goals", tags=["goals"])
+app.include_router(stt.router, tags=["speech-to-text"])  # STT includes prefix in router definition
 
 # WebSocket endpoint
 @app.websocket("/ws")

@@ -19,7 +19,55 @@ export interface STTProvider {
 }
 
 // ============================================================================
-// Groq Whisper Provider (Primary)
+// Backend STT Provider (Primary - Uses Official Groq SDK on Server)
+// ============================================================================
+
+export class BackendSTTProvider implements STTProvider {
+  name = 'Backend STT (Groq SDK)';
+  private backendUrl: string;
+
+  constructor() {
+    this.backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  }
+
+  async transcribe(audioBlob: Blob, language: string = 'he'): Promise<string> {
+    const formData = new FormData();
+
+    // Detect file extension
+    const fileExt = audioBlob.type.includes('webm') ? 'webm' :
+                    audioBlob.type.includes('ogg') ? 'ogg' :
+                    audioBlob.type.includes('mp4') ? 'm4a' : 'webm';
+
+    console.log(`[BackendSTT] Sending ${audioBlob.size} bytes to backend, language=${language}`);
+
+    // Append file with correct extension
+    formData.append('file', audioBlob, `audio.${fileExt}`);
+    formData.append('language', language);
+    formData.append('model', 'whisper-large-v3');
+    formData.append('temperature', '0');  // Most accurate
+
+    // Hebrew fitness terminology prompt
+    const hebrewPrompt = 'תרגילים: סקוואטים, שכיבות סמיכה, מתיחות, ברפיס, דדליפט, ספסל, קילו, חזרות';
+    formData.append('prompt', hebrewPrompt);
+
+    const response = await fetch(`${this.backendUrl}/api/v1/stt/transcribe`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Backend STT error: ${response.status} - ${error}`);
+    }
+
+    const result = await response.json();
+    console.log('[BackendSTT] Response:', result.language, 'duration:', result.duration);
+    return result.text;
+  }
+}
+
+// ============================================================================
+// Groq Whisper Provider (Direct API - Fallback)
 // ============================================================================
 
 export class GroqWhisperProvider implements STTProvider {
@@ -44,7 +92,16 @@ export class GroqWhisperProvider implements STTProvider {
     formData.append('file', audioBlob, `audio.${fileExt}`);
     formData.append('model', 'whisper-large-v3');
     formData.append('language', language);
-    formData.append('response_format', 'json');
+
+    // CRITICAL: temperature=0 for most accurate, deterministic transcription
+    formData.append('temperature', '0');
+
+    // Hebrew fitness terminology prompt to guide the model
+    // Place key terms at END of prompt (last ~5 words matter most)
+    const hebrewPrompt = 'תרגילים: סקוואטים, שכיבות סמיכה, מתיחות, ברפיס, דדליפט, ספסל, קילו, חזרות';
+    formData.append('prompt', hebrewPrompt);
+
+    formData.append('response_format', 'verbose_json');
 
     const response = await fetch(this.baseUrl, {
       method: 'POST',
@@ -60,6 +117,7 @@ export class GroqWhisperProvider implements STTProvider {
     }
 
     const result = await response.json();
+    console.log('[Groq] Response format:', result.task || 'transcribe', 'language:', result.language);
     return result.text;
   }
 }
@@ -90,7 +148,15 @@ export class OpenAIWhisperProvider implements STTProvider {
     formData.append('file', audioBlob, `audio.${fileExt}`);
     formData.append('model', 'whisper-1');
     formData.append('language', language);
-    formData.append('response_format', 'json');
+
+    // CRITICAL: temperature=0 for most accurate, deterministic transcription
+    formData.append('temperature', '0');
+
+    // Hebrew fitness terminology prompt to guide the model
+    const hebrewPrompt = 'תרגילים: סקוואטים, שכיבות סמיכה, מתיחות, ברפיס, דדליפט, ספסל, קילו, חזרות';
+    formData.append('prompt', hebrewPrompt);
+
+    formData.append('response_format', 'verbose_json');
 
     const response = await fetch(this.baseUrl, {
       method: 'POST',
@@ -106,6 +172,7 @@ export class OpenAIWhisperProvider implements STTProvider {
     }
 
     const result = await response.json();
+    console.log('[OpenAI] Response format:', result.task || 'transcribe', 'language:', result.language);
     return result.text;
   }
 }
@@ -155,6 +222,10 @@ export class WebSpeechProvider implements STTProvider {
 
 export function getSTTProvider(name: string): STTProvider {
   switch (name.toLowerCase()) {
+    case 'backend':
+    case 'backend-stt':
+      return new BackendSTTProvider();
+
     case 'groq':
     case 'groq-whisper':
       return new GroqWhisperProvider();
@@ -193,7 +264,7 @@ export class VoiceInputService {
     // Get configuration from env or use defaults
     const primaryProviderName = config.primaryProvider ||
                                  import.meta.env.VITE_STT_PROVIDER ||
-                                 'groq';
+                                 'backend';  // Use backend (official Groq SDK) by default
 
     const fallbackChain = config.fallbackProviders ||
                           (import.meta.env.VITE_STT_FALLBACK_CHAIN || 'openai,web-speech').split(',');

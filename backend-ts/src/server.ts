@@ -10,6 +10,8 @@ import workoutRoutes from './routes/workouts';
 import statsRoutes from './routes/statistics';
 import aiRoutes from './routes/ai';
 import memoryRoutes from './routes/memory';
+import pointsV3Routes from './routes/pointsV3';
+import { pointsEngineV3 } from './services/points/PointsEngineV3';
 
 async function buildServer() {
   const server = Fastify({
@@ -120,36 +122,38 @@ async function buildServer() {
   await server.register(statsRoutes, { prefix: '/statistics' });
   await server.register(aiRoutes, { prefix: '/ai' });
   await server.register(memoryRoutes, { prefix: '/api/memory' });
+  await server.register(pointsV3Routes, { prefix: '/api/v3/points' });
 
   // WebSocket endpoint for real-time AI streaming
   server.get('/ws', { websocket: true }, (connection, request) => {
     server.log.info(`WebSocket connection established from ${request.socket.remoteAddress}`);
 
-    connection.socket.on('message', (message: Buffer) => {
+    // Use connection directly, not connection.socket (Fastify WebSocket API)
+    connection.on('message', (message: Buffer) => {
       try {
         const data = JSON.parse(message.toString());
         server.log.info(`Received message: ${data.type || 'unknown'}`);
 
         // Echo back for now (AI streaming will be implemented later)
-        connection.socket.send(JSON.stringify({
+        connection.send(JSON.stringify({
           type: 'response',
           content: `Received: ${data.content || data.message || 'unknown'}`,
           timestamp: new Date().toISOString()
         }));
       } catch (error) {
         server.log.error({error}, 'WebSocket message error');
-        connection.socket.send(JSON.stringify({
+        connection.send(JSON.stringify({
           type: 'error',
           message: 'Invalid message format'
         }));
       }
     });
 
-    connection.socket.on('close', () => {
+    connection.on('close', () => {
       server.log.info('WebSocket connection closed');
     });
 
-    connection.socket.on('error', (error: Error) => {
+    connection.on('error', (error: Error) => {
       server.log.error({error}, 'WebSocket error');
     });
   });
@@ -198,6 +202,11 @@ async function startServer() {
     await connectRedis();
     console.log('✅ Redis connected successfully');
 
+    // Initialize Points Engine v3
+    console.log('📊 Initializing Points Engine v3...');
+    await pointsEngineV3.initialize();
+    console.log('✅ Points Engine v3 initialized');
+
     // Build and start server
     const server = await buildServer();
 
@@ -229,6 +238,9 @@ process.on('SIGINT', async () => {
 
     await disconnectRedis();
     console.log('✅ Redis connection closed');
+
+    await pointsEngineV3.close();
+    console.log('✅ Points Engine v3 closed');
 
     process.exit(0);
   } catch (error) {

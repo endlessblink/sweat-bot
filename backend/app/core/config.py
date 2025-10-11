@@ -34,13 +34,13 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://fitness_user:secure_password@localhost:5434/hebrew_fitness",
+        default="postgresql+asyncpg://fitness_user:secure_password@localhost:8001/hebrew_fitness",
         env="DATABASE_URL"
     )
     
     # Redis
     REDIS_URL: str = Field(
-        default="redis://:sweatbot_redis_pass@localhost:6381/0",
+        default="redis://:sweatbot_redis_pass@localhost:8003/0",
         env="REDIS_URL"
     )
     
