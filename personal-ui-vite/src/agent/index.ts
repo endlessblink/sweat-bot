@@ -103,7 +103,6 @@ export class SweatBotAgent {
         return this.conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n');
       }
     };
-  }
 
   private async loadConversationHistory(): Promise<void> {
     if (this.memoryInitialized) return;
