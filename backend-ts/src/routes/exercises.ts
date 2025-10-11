@@ -10,7 +10,26 @@ const exerciseRoutes: FastifyPluginAsync = async (fastify) => {
   const logExerciseHandler = async (request: any, reply: any) => {
     try {
       const userId = (request.user as AuthenticatedUser).id;
-      const result = await exerciseService.logExercise(userId, request.body);
+      const body = request.body;
+
+      // Normalize Python backend format to TypeScript format
+      const normalizedBody: any = {
+        nameEn: body.nameEn || body.name || 'unknown',
+        nameHe: body.nameHe || body.name_he,
+        type: body.type || body.exercise_type || 'other',
+        category: body.category,
+        sets: body.sets,
+        reps: body.reps,
+        weightKg: body.weightKg || body.weight_kg,
+        durationMinutes: body.durationMinutes || (body.duration_seconds ? body.duration_seconds / 60 : undefined),
+        distanceKm: body.distanceKm || body.distance_km,
+        calories: body.calories,
+        intensity: body.intensity,
+        notes: body.notes,
+        points: body.points_earned || body.points
+      };
+
+      const result = await exerciseService.logExercise(userId, normalizedBody);
 
       return reply.status(201).send({
         success: true,
@@ -30,10 +49,18 @@ const exerciseRoutes: FastifyPluginAsync = async (fastify) => {
   const exerciseSchema = {
     body: {
       type: 'object',
-      required: ['nameEn', 'type'],
+      // Accept either Python format (name) or TypeScript format (nameEn)
+      anyOf: [
+        { required: ['name'] },
+        { required: ['nameEn'] }
+      ],
       properties: {
+        // Support both naming conventions
+        name: { type: 'string', minLength: 1 },
         nameEn: { type: 'string', minLength: 1 },
+        name_he: { type: 'string' },
         nameHe: { type: 'string' },
+        exercise_type: { type: 'string' },
         type: {
           type: 'string',
           enum: ['strength', 'cardio', 'flexibility', 'balance', 'sports', 'other']
@@ -41,15 +68,20 @@ const exerciseRoutes: FastifyPluginAsync = async (fastify) => {
         category: { type: 'string' },
         sets: { type: 'integer', minimum: 1 },
         reps: { type: 'integer', minimum: 1 },
+        weight_kg: { type: 'number', minimum: 0 },
         weightKg: { type: 'number', minimum: 0 },
+        duration_seconds: { type: 'number', minimum: 0 },
         durationMinutes: { type: 'number', minimum: 0 },
+        distance_km: { type: 'number', minimum: 0 },
         distanceKm: { type: 'number', minimum: 0 },
+        points_earned: { type: 'number', minimum: 0 },
         calories: { type: 'integer', minimum: 0 },
         intensity: {
           type: 'string',
           enum: ['low', 'medium', 'high']
         },
-        notes: { type: 'string', maxLength: 500 }
+        notes: { type: 'string', maxLength: 500 },
+        timestamp: { type: 'string' }
       }
     }
   };
