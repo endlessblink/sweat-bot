@@ -9,6 +9,7 @@ from sqlalchemy import select, and_, func
 from typing import List, Optional
 from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
+import logging
 
 from app.core.database import get_db
 from app.models.models import Exercise, Workout, PersonalRecord, User
@@ -16,6 +17,9 @@ from app.api.v1.auth import get_current_user
 from app.services.gamification_service import GamificationService
 from app.services.hebrew_parser_service import HebrewParserService
 from app.services.workout_variety_service import WorkoutVarietyService
+from app.services.points_engine_v3 import points_engine_v3
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -105,7 +109,7 @@ async def log_exercise(
         exercise_input.name_he = exercise_input.name  # Just use English name as fallback
         # exercise_input.name_he = hebrew_parser.translate_exercise_name(exercise_input.name)
     
-    # Create exercise record
+    # Create exercise record (without points yet)
     exercise = Exercise(
         workout_id=workout.id,
         name=exercise_input.name,
@@ -118,14 +122,54 @@ async def log_exercise(
         voice_command=exercise_input.voice_command,
         order_in_workout=workout.total_exercises + 1
     )
-    
-    # Calculate points
-    points = gamification_service.calculate_exercise_points(exercise)
-    exercise.points_earned = points
-    
-    # Check for personal record
+
+    # Check for personal record BEFORE points calculation
     is_pr = await check_personal_record(db, current_user.id, exercise)
     exercise.is_personal_record = is_pr
+
+    # Calculate points using Points v3 engine with fallback to old system
+    try:
+        # Map exercise name to key (normalize to lowercase, replace spaces with underscores)
+        exercise_key = exercise_input.name.lower().replace(' ', '_').replace('-', '_')
+
+        # Get user context for rules evaluation
+        user_context = {
+            'user_id': str(current_user.id),
+            'total_points': 0,  # Will be calculated from database in v3
+            'total_workouts': workout.total_exercises,
+            'streak_days': 0,  # Simplified for now
+            'session_exercise_count': workout.total_exercises,
+            'workout_hour': datetime.now().hour
+        }
+
+        # Calculate points with v3 engine
+        result = await points_engine_v3.calculate_points(
+            exercise_key=exercise_key,
+            reps=exercise_input.reps or 0,
+            sets=exercise_input.sets or 1,
+            weight_kg=exercise_input.weight_kg or 0.0,
+            distance_km=exercise_input.distance_km or 0.0,
+            duration_seconds=exercise_input.duration_seconds or 0,
+            is_personal_record=is_pr,
+            user_context=user_context
+        )
+
+        # Check if Points v3 succeeded or needs fallback
+        if result.total_points == 0 and (result.status.value == 'failed' or result.errors):
+            # Points v3 failed (no config), use old system
+            logger.warning(f"[Points v3] No config for {exercise_key}, using fallback system")
+            points = gamification_service.calculate_exercise_points(exercise)
+        else:
+            # Points v3 succeeded
+            points = int(result.total_points)
+            logger.info(f"[Points v3] Calculated {points} points for {exercise_key} (breakdown: base={result.breakdown.base_points}, bonuses={result.breakdown.bonus_points})")
+
+    except Exception as e:
+        # Fallback to old system if v3 crashes
+        logger.warning(f"[Points v3] Exception occurred, using fallback: {str(e)}")
+        points = gamification_service.calculate_exercise_points(exercise)
+
+    exercise.points_earned = points
     
     if is_pr:
         await create_personal_record(db, current_user.id, exercise)

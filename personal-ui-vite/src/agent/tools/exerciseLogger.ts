@@ -26,10 +26,7 @@ export const exerciseLoggerTool = {
   
   execute: async (params: ExerciseLoggerParams) => {
     try {
-      // Calculate points based on exercise type and parameters
-      const points = calculatePoints(params);
-      
-      // Prepare data for backend
+      // Prepare data for backend (Points v3 will calculate server-side)
       const exerciseData = {
         name: params.exercise,
         name_he: params.exercise_he || translateToHebrew(params.exercise),
@@ -39,15 +36,18 @@ export const exerciseLoggerTool = {
         distance_km: params.distance_km,
         duration_seconds: params.duration_seconds,
         notes: params.notes,
-        points_earned: points,
         timestamp: new Date().toISOString()
       };
       
-      // Send to backend
-      const response = await fetch('http://localhost:8000/api/v1/exercises', {
+      // Send to backend (using correct endpoint: /exercises/log)
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const token = await (await import('../../utils/auth')).getOrCreateGuestToken();
+
+      const response = await fetch(`${backendUrl}/exercises/log`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(exerciseData)
       });
@@ -57,10 +57,13 @@ export const exerciseLoggerTool = {
       }
       
       const result = await response.json();
-      
+
+      // Get points from backend response (Points v3 calculated)
+      const backendPoints = result.points_earned || 0;
+
       // Build success message in Hebrew
       let message = `✅ `;
-      
+
       if (params.distance_km) {
         message += `${params.exercise_he || translateToHebrew(params.exercise)} ${params.distance_km} ק"מ נרשם בהצלחה!`;
       } else if (params.reps) {
@@ -72,16 +75,21 @@ export const exerciseLoggerTool = {
       } else {
         message += `${params.exercise_he || translateToHebrew(params.exercise)} נרשם בהצלחה!`;
       }
-      
-      if (points > 0) {
-        message += ` קיבלת ${points} נקודות! 💪`;
+
+      // Show Points v3 calculated points
+      if (backendPoints > 0) {
+        message += ` קיבלת ${backendPoints} נקודות! 💪`;
       }
-      
-      // Check for achievements
+
+      // Check for achievements or personal records
+      if (result.is_personal_record) {
+        message += `\n🏆 שיא אישי חדש!`;
+      }
+
       if (result.achievement) {
         message += `\n🏆 הישג חדש: ${result.achievement}`;
       }
-      
+
       return {
         success: true,
         message,
@@ -90,8 +98,9 @@ export const exerciseLoggerTool = {
           type: 'exercise_card',
           props: {
             exercise: exerciseData,
-            points: points,
-            achievement: result.achievement
+            points: backendPoints,  // Use backend-calculated points
+            achievement: result.achievement,
+            is_personal_record: result.is_personal_record
           }
         }
       };
@@ -107,48 +116,14 @@ export const exerciseLoggerTool = {
 };
 
 /**
- * Calculate points for an exercise
+ * REMOVED: Old hardcoded points calculation
+ * Points are now calculated server-side using Points v3 engine with YAML configuration
+ * This provides:
+ * - Centralized points logic in backend
+ * - Dynamic multipliers and bonuses
+ * - Rule-based calculations (streaks, time-of-day, personal records)
+ * - Easier balancing and updates via YAML config
  */
-function calculatePoints(params: ExerciseLoggerParams): number {
-  let points = 0;
-  
-  // Base points by exercise type
-  const basePoints: Record<string, number> = {
-    'squat': 2,
-    'pushup': 1.5,
-    'pullup': 3,
-    'burpee': 2.5,
-    'running': 5,
-    'walking': 2,
-    'cycling': 3,
-    'deadlift': 3,
-    'bench_press': 2.5,
-    'rope_climb': 4,
-    'plank': 2,
-    'situp': 1,
-    'abs': 1.5
-  };
-  
-  const base = basePoints[params.exercise.toLowerCase()] || 1;
-  
-  // Calculate based on parameters
-  if (params.reps) {
-    points = base * params.reps * (params.sets || 1);
-  } else if (params.distance_km) {
-    points = base * params.distance_km * 10;
-  } else if (params.duration_seconds) {
-    points = base * (params.duration_seconds / 60); // Points per minute
-  } else {
-    points = base * 10; // Default for unspecified
-  }
-  
-  // Weight multiplier
-  if (params.weight_kg) {
-    points *= (1 + params.weight_kg / 100);
-  }
-  
-  return Math.round(points);
-}
 
 /**
  * Translate English exercise name to Hebrew
