@@ -1,11 +1,9 @@
 /**
- * SweatBot Volt Agent - Main initialization
- * Complete implementation with Hebrew support
+ * SweatBot Agent - Secure Backend Proxy Implementation
+ * All API keys managed server-side - completely secure!
  */
 
-import { VoltAgent } from './voltAgent';
-// Dynamic imports for AI providers to reduce bundle size
-// Providers are loaded on-demand in initializeProviders()
+import { aiClient, RateLimitException } from '../services/aiClient';
 import { sanitizeResponse, isResponseSafe } from './utils/responseSanitizer';
 import { getOrCreateGuestToken } from '../utils/auth';
 
@@ -23,7 +21,6 @@ interface ConversationState {
 }
 
 export class SweatBotAgent {
-  private agent: VoltAgent;
   private userId: string;
   private conversationHistory: Array<{role: string, content: string, timestamp?: string}> = [];
   private conversationState: ConversationState = {
@@ -34,15 +31,24 @@ export class SweatBotAgent {
   };
   private sessionId: string | null = null;
   private memoryInitialized: boolean = false;
+  private tools: any[];
 
   constructor(config: SweatBotConfig = {}) {
     this.userId = config.userId || 'personal';
 
-    // Initialize providers with fallback chain
-    const providers = this.initializeProviders();
+    // Initialize tools
+    this.tools = this.getTools();
 
-    // Initialize MongoDB-backed conversation storage with offline fallback
-    const memory = {
+    // Load conversation history from MongoDB (async, non-blocking)
+    this.loadConversationHistory().catch(err => {
+      console.warn('Could not load conversation history:', err);
+    });
+
+    console.log('✅ SweatBotAgent initialized with secure backend proxy');
+  }
+
+  // MongoDB persistence methods (keep memory functionality for conversation storage)
+  private memory = {
       addMessage: async (msg: any) => {
         // Add to local cache first for immediate UI updates
         this.conversationHistory.push({
@@ -97,22 +103,6 @@ export class SweatBotAgent {
         return this.conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n');
       }
     };
-
-    // Create Volt Agent instance
-    this.agent = new VoltAgent({
-      name: 'SweatBot',
-      providers,
-      tools: this.getTools(),
-      memory,
-      systemPrompt: this.getSystemPrompt(),
-      temperature: 0.7,
-      streaming: true
-    });
-
-    // Load conversation history from MongoDB (async, non-blocking)
-    this.loadConversationHistory().catch(err => {
-      console.warn('Could not load conversation history:', err);
-    });
   }
 
   private async loadConversationHistory(): Promise<void> {
@@ -161,84 +151,6 @@ export class SweatBotAgent {
       console.warn('⚠️ Failed to load conversation history (offline?):', error);
       this.memoryInitialized = true; // Don't retry
     }
-  }
-  
-  private initializeProviders() {
-    const providers: any = {};
-
-    // Store provider loader for lazy initialization
-    // Providers are loaded on first use to reduce initial bundle size
-    const providerLoader = async (type: 'openai' | 'groq' | 'gemini' | 'local') => {
-      switch (type) {
-        case 'openai':
-          if (import.meta.env.VITE_OPENAI_API_KEY) {
-            const { OpenAIProvider } = await import('./providers/openai');
-            return new OpenAIProvider({
-              apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-              model: 'gpt-4o-mini'
-            });
-          }
-          break;
-
-        case 'groq':
-          if (import.meta.env.VITE_GROQ_API_KEY) {
-            const { GroqProvider } = await import('./providers/groq');
-            return new GroqProvider({
-              apiKey: import.meta.env.VITE_GROQ_API_KEY,
-              model: 'llama-3.3-70b-versatile'
-            });
-          }
-          break;
-
-        case 'gemini':
-          if (import.meta.env.VITE_GEMINI_API_KEY) {
-            const { GeminiProvider } = await import('./providers/gemini');
-            return new GeminiProvider({
-              apiKey: import.meta.env.VITE_GEMINI_API_KEY,
-              model: 'gemini-1.5-pro'
-            });
-          }
-          break;
-
-        case 'local':
-          const { LocalModelsProvider } = await import('./providers/localModels');
-          return new LocalModelsProvider({
-            baseUrl: import.meta.env.VITE_LOCAL_MODELS_URL || 'http://localhost:8006'
-          });
-      }
-      return null;
-    };
-
-    // Pre-load primary provider only (reduces initial bundle by ~300KB)
-    // Fallback providers loaded on-demand if primary fails
-    if (import.meta.env.VITE_OPENAI_API_KEY) {
-      import('./providers/openai').then(({ OpenAIProvider }) => {
-        providers.openai = new OpenAIProvider({
-          apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-          model: 'gpt-4o-mini'
-        });
-        console.log('✅ OpenAI provider loaded (PRIMARY - GPT-4o-mini)');
-      }).catch(error => {
-        console.error('Failed to load OpenAI provider:', error);
-      });
-    } else if (import.meta.env.VITE_GROQ_API_KEY) {
-      import('./providers/groq').then(({ GroqProvider }) => {
-        providers.groq = new GroqProvider({
-          apiKey: import.meta.env.VITE_GROQ_API_KEY,
-          model: 'llama-3.3-70b-versatile'
-        });
-        console.log('✅ Groq provider loaded (PRIMARY - Free tier)');
-      }).catch(error => {
-        console.error('Failed to load Groq provider:', error);
-      });
-    } else {
-      console.warn('⚠️ No API keys found - will try Gemini as fallback');
-    }
-
-    // Store loader for fallback chain
-    (providers as any)._loader = providerLoader;
-
-    return providers;
   }
   
   private getSystemPrompt(): string {
