@@ -1,4 +1,5 @@
-version: '3.8'
+# Docker Compose for SweatBot - Database Services Only
+# Backend and frontend run locally for faster development
 
 services:
   # PostgreSQL Database
@@ -57,83 +58,13 @@ services:
       - sweatbot_network
     restart: unless-stopped
 
-  # Local Models Service - Whisper and Ollama for SweatBot
-  volt-models:
-    build:
-      context: ./volt-models
-      dockerfile: Dockerfile
-    container_name: sweatbot_volt_models
-    environment:
-      - PORT=8006
-      - OLLAMA_HOST=http://localhost:11434
-      - MODEL_CACHE_DIR=/app/models
-      - LOG_LEVEL=INFO
-    ports:
-      - "8006:8006"
-    volumes:
-      - ./volt-models:/app
-      - whisper_models:/app/models/whisper
-      - ollama_models:/app/models/ollama
-    networks:
-      - sweatbot_network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
+  # Backend and Frontend run locally (not in Docker)
+  # Backend: cd backend && doppler run -- python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+  # Frontend: cd personal-ui-vite && npm run dev
 
-  # FastAPI Backend
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: sweatbot_backend
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://fitness_user:${POSTGRES_PASSWORD}@postgres:5432/hebrew_fitness
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - MONGODB_URL=mongodb://sweatbot:${MONGODB_PASSWORD}@mongodb:27017/
-      - DATABASE_URL_EXTERNAL=postgresql+asyncpg://fitness_user:${POSTGRES_PASSWORD}@localhost:8001/hebrew_fitness
-      - REDIS_URL_EXTERNAL=redis://:${REDIS_PASSWORD}@localhost:8003/0
-      - MONGODB_URL_EXTERNAL=mongodb://sweatbot:${MONGODB_PASSWORD}@localhost:8002/
-      - SECRET_KEY=${SECRET_KEY}
-      - ALGORITHM=HS256
-      - DEBUG=${DEBUG}
-      - CORS_ORIGINS=http://localhost:8000,http://localhost:8004,http://localhost:4445
-      - WHISPER_MODEL_SIZE=base
-      - LOG_LEVEL=${LOG_LEVEL}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - whisper_models:/app/models
-    networks:
-      - sweatbot_network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      mongodb:
-        condition: service_started
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    command: >
-      sh -c "python -m alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+  # Removed Services (run locally for faster development):
+  # - backend: Run with: cd backend && doppler run -- uvicorn app.main:app --reload
+  # - volt-models: Unused (frontend uses cloud AI APIs directly)
 
   # Next.js Frontend
   # Note: Frontend now runs Vite with Volt Agent at port 8007
@@ -254,10 +185,6 @@ volumes:
   redis_data:
     driver: local
   mongodb_data:
-    driver: local
-  ollama_models:
-    driver: local
-  whisper_models:
     driver: local
   minio_data:
     driver: local

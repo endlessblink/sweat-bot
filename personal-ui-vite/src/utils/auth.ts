@@ -207,3 +207,115 @@ export function getUserRole(): string | null {
   const user = getStoredUser();
   return user?.role || null;
 }
+
+/**
+ * Check if token is expired or will expire soon
+ * @param token JWT token string
+ * @param bufferHours Hours before expiration to consider "expiring soon" (default: 24)
+ * @returns true if token is expired or expiring soon
+ */
+export function isTokenExpiringSoon(token: string, bufferHours: number = 24): boolean {
+  try {
+    // JWT tokens have 3 parts: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) return true; // Invalid token format
+
+    // Decode payload (base64url)
+    const payload = JSON.parse(atob(parts[1]));
+
+    // Check expiration claim
+    if (!payload.exp) return true; // No expiration claim
+
+    const expirationTime = payload.exp * 1000; // Convert to milliseconds
+    const now = Date.now();
+    const bufferTime = bufferHours * 60 * 60 * 1000;
+
+    // Return true if expired or expiring within buffer period
+    return (expirationTime - now) <= bufferTime;
+  } catch (error) {
+    console.error('Failed to check token expiration:', error);
+    return true; // Assume expired on error
+  }
+}
+
+/**
+ * Refresh authentication token using the backend refresh endpoint
+ * @returns Promise<boolean> true if refresh succeeded
+ */
+export async function refreshAuthToken(): Promise<boolean> {
+  try {
+    const currentToken = getStoredToken();
+    if (!currentToken) {
+      console.warn('No token to refresh');
+      return false;
+    }
+
+    console.log('🔄 Refreshing authentication token...');
+
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${currentToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      console.error('Token refresh failed:', response.status);
+      return false;
+    }
+
+    const authData: AuthToken = await response.json();
+
+    // Update stored token and user info
+    localStorage.setItem(TOKEN_KEY, authData.access_token);
+
+    // Preserve is_guest flag and other user data
+    const currentUser = getStoredUser();
+    localStorage.setItem(USER_KEY, JSON.stringify({
+      ...authData.user,
+      is_guest: currentUser?.is_guest ?? authData.user.is_guest,
+      created_at: currentUser?.created_at ?? Date.now(),
+      role: authData.user.role
+    }));
+
+    console.log('✅ Token refreshed successfully');
+    return true;
+  } catch (error) {
+    console.error('Failed to refresh token:', error);
+    return false;
+  }
+}
+
+/**
+ * Check token and refresh if needed
+ * Call this before making authenticated API requests
+ * @returns Promise<string | null> Valid token or null if refresh failed
+ */
+export async function getValidToken(): Promise<string | null> {
+  const token = getStoredToken();
+
+  if (!token) {
+    console.warn('No authentication token found');
+    return null;
+  }
+
+  // Check if token is expiring soon (within 24 hours)
+  if (isTokenExpiringSoon(token)) {
+    console.log('⚠️ Token expiring soon, attempting refresh...');
+    const refreshed = await refreshAuthToken();
+
+    if (!refreshed) {
+      console.error('❌ Token refresh failed - user needs to re-authenticate');
+      // Clear invalid token
+      clearAuth();
+      return null;
+    }
+
+    // Return the newly refreshed token
+    return getStoredToken();
+  }
+
+  // Token is still valid
+  return token;
+}

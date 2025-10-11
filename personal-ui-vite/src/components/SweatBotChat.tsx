@@ -154,16 +154,15 @@ export default function SweatBotChat({
     }
   }, [sessionToLoad]);
 
-  // Helper function to store messages in MongoDB
+  // Helper function to store messages in MongoDB (with automatic token refresh)
   const storeMessage = async (role: 'user' | 'assistant', content: string) => {
     try {
       console.log('[storeMessage] ENTRY - role:', role, 'content length:', content.length);
 
       const authModule = await import('../utils/auth');
-      const token = await authModule.getOrCreateGuestToken();
       const userId = authModule.getUserId();
 
-      console.log('[storeMessage] Auth - userId:', userId, 'token:', token ? 'exists' : 'missing');
+      console.log('[storeMessage] Auth - userId:', userId);
 
       if (!userId) {
         console.warn('[storeMessage] ❌ No user ID available, skipping message storage');
@@ -175,34 +174,24 @@ export default function SweatBotChat({
 
       console.log('[storeMessage] Fetching:', url);
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          userId: userId,
-          sessionId: currentSessionId,  // Send current session ID to backend
-          message: {
-            role,
-            content,
-            timestamp: new Date().toISOString()
-          }
-        })
+      // Use authenticated API wrapper with automatic token refresh
+      const { apiPost, parseJsonResponse } = await import('../utils/api');
+
+      const response = await apiPost(url, {
+        userId: userId,
+        sessionId: currentSessionId,  // Send current session ID to backend
+        message: {
+          role,
+          content,
+          timestamp: new Date().toISOString()
+        }
       });
 
       console.log('[storeMessage] Sent with sessionId:', currentSessionId);
-
       console.log('[storeMessage] Response status:', response.status, response.statusText);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[storeMessage] ❌ Failed - status:', response.status, 'error:', errorText);
-      } else {
-        const result = await response.json();
-        console.log('[storeMessage] ✅ Success:', result);
-      }
+      const result = await parseJsonResponse(response);
+      console.log('[storeMessage] ✅ Success:', result);
     } catch (error) {
       console.error('[storeMessage] ❌ Exception:', error);
     }
@@ -213,22 +202,13 @@ export default function SweatBotChat({
       console.log('[handleLoadSession] Loading session:', sessionId);
       setIsLoading(true);
 
-      const authModule = await import('../utils/auth');
-      const token = await authModule.getOrCreateGuestToken();
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
-      const response = await fetch(`${backendUrl}/api/memory/session/${sessionId}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      // Use authenticated API wrapper with automatic token refresh
+      const { apiGet, parseJsonResponse } = await import('../utils/api');
 
-      if (!response.ok) {
-        throw new Error(`Failed to load session: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const response = await apiGet(`${backendUrl}/api/memory/session/${sessionId}`);
+      const data = await parseJsonResponse(response);
       console.log('[handleLoadSession] Loaded', data.messages?.length || 0, 'messages');
 
       // Transform backend messages to frontend Message format

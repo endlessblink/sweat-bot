@@ -4,10 +4,8 @@
  */
 
 import { VoltAgent } from './voltAgent';
-import { GeminiProvider } from './providers/gemini';
-import { GroqProvider } from './providers/groq';
-import { OpenAIProvider } from './providers/openai';
-import { LocalModelsProvider } from './providers/localModels';
+// Dynamic imports for AI providers to reduce bundle size
+// Providers are loaded on-demand in initializeProviders()
 import { sanitizeResponse, isResponseSafe } from './utils/responseSanitizer';
 import { getOrCreateGuestToken } from '../utils/auth';
 
@@ -27,34 +25,79 @@ interface ConversationState {
 export class SweatBotAgent {
   private agent: VoltAgent;
   private userId: string;
-  private conversationHistory: Array<{role: string, content: string}> = [];
+  private conversationHistory: Array<{role: string, content: string, timestamp?: string}> = [];
   private conversationState: ConversationState = {
     waitingForExerciseDetails: false,
     lastUserIntent: null,
     lastPromptedFor: null,
     lastQuickWorkoutResponse: null
   };
-  
+  private sessionId: string | null = null;
+  private memoryInitialized: boolean = false;
+
   constructor(config: SweatBotConfig = {}) {
     this.userId = config.userId || 'personal';
-    
+
     // Initialize providers with fallback chain
     const providers = this.initializeProviders();
-    
-    // Initialize simple in-memory conversation storage (no backend needed)
+
+    // Initialize MongoDB-backed conversation storage with offline fallback
     const memory = {
       addMessage: async (msg: any) => {
-        this.conversationHistory.push({role: msg.role, content: msg.content});
-        // Keep last 20 messages for context
+        // Add to local cache first for immediate UI updates
+        this.conversationHistory.push({
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date().toISOString()
+        });
+
+        // Keep last 20 messages in memory
         if (this.conversationHistory.length > 20) {
           this.conversationHistory = this.conversationHistory.slice(-20);
         }
+
+        // Persist to MongoDB backend
+        try {
+          const token = await getOrCreateGuestToken();
+
+          const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/memory/message`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              userId: this.userId,
+              message: {
+                role: msg.role,
+                content: msg.content,
+                timestamp: new Date().toISOString()
+              },
+              sessionId: this.sessionId
+            })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            // Store session ID for future messages
+            if (result.session_id) {
+              this.sessionId = result.session_id;
+            }
+            console.log('✅ Message persisted to MongoDB:', result.session_id);
+          } else {
+            console.warn('⚠️ Failed to persist message to MongoDB, using local cache only');
+          }
+        } catch (error) {
+          console.warn('⚠️ MongoDB persistence failed (offline?), message saved locally:', error);
+          // Message still in local cache, so conversation continues
+        }
       },
+
       getContext: () => {
         return this.conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n');
       }
     };
-    
+
     // Create Volt Agent instance
     this.agent = new VoltAgent({
       name: 'SweatBot',
@@ -65,65 +108,136 @@ export class SweatBotAgent {
       temperature: 0.7,
       streaming: true
     });
+
+    // Load conversation history from MongoDB (async, non-blocking)
+    this.loadConversationHistory().catch(err => {
+      console.warn('Could not load conversation history:', err);
+    });
+  }
+
+  private async loadConversationHistory(): Promise<void> {
+    if (this.memoryInitialized) return;
+
+    try {
+      const token = await getOrCreateGuestToken();
+
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/api/memory/context/${this.userId}?limit=20`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data.messages && data.messages.length > 0) {
+          // Load messages into local cache
+          this.conversationHistory = data.messages.map((m: any) => ({
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp
+          }));
+
+          // Store session ID
+          if (data.session_id) {
+            this.sessionId = data.session_id;
+          }
+
+          console.log(`✅ Loaded ${data.messages.length} messages from MongoDB (session: ${this.sessionId})`);
+          console.log(`   Total messages in session: ${data.total_messages}`);
+        } else {
+          console.log('ℹ️ No previous conversation history found - starting fresh');
+        }
+      } else {
+        console.warn('⚠️ Could not load conversation history from server');
+      }
+
+      this.memoryInitialized = true;
+    } catch (error) {
+      console.warn('⚠️ Failed to load conversation history (offline?):', error);
+      this.memoryInitialized = true; // Don't retry
+    }
   }
   
   private initializeProviders() {
     const providers: any = {};
-    
-    // OpenAI - Now primary provider for reliable tool calling (GPT-4o-mini)
+
+    // Store provider loader for lazy initialization
+    // Providers are loaded on first use to reduce initial bundle size
+    const providerLoader = async (type: 'openai' | 'groq' | 'gemini' | 'local') => {
+      switch (type) {
+        case 'openai':
+          if (import.meta.env.VITE_OPENAI_API_KEY) {
+            const { OpenAIProvider } = await import('./providers/openai');
+            return new OpenAIProvider({
+              apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+              model: 'gpt-4o-mini'
+            });
+          }
+          break;
+
+        case 'groq':
+          if (import.meta.env.VITE_GROQ_API_KEY) {
+            const { GroqProvider } = await import('./providers/groq');
+            return new GroqProvider({
+              apiKey: import.meta.env.VITE_GROQ_API_KEY,
+              model: 'llama-3.3-70b-versatile'
+            });
+          }
+          break;
+
+        case 'gemini':
+          if (import.meta.env.VITE_GEMINI_API_KEY) {
+            const { GeminiProvider } = await import('./providers/gemini');
+            return new GeminiProvider({
+              apiKey: import.meta.env.VITE_GEMINI_API_KEY,
+              model: 'gemini-1.5-pro'
+            });
+          }
+          break;
+
+        case 'local':
+          const { LocalModelsProvider } = await import('./providers/localModels');
+          return new LocalModelsProvider({
+            baseUrl: import.meta.env.VITE_LOCAL_MODELS_URL || 'http://localhost:8006'
+          });
+      }
+      return null;
+    };
+
+    // Pre-load primary provider only (reduces initial bundle by ~300KB)
+    // Fallback providers loaded on-demand if primary fails
     if (import.meta.env.VITE_OPENAI_API_KEY) {
-      try {
+      import('./providers/openai').then(({ OpenAIProvider }) => {
         providers.openai = new OpenAIProvider({
           apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-          model: 'gpt-4o-mini' // Fast, reliable, and cost-effective
+          model: 'gpt-4o-mini'
         });
-        console.log('✅ OpenAI provider initialized (PRIMARY - GPT-4o-mini)');
-      } catch (error) {
-        console.error('Failed to initialize OpenAI provider:', error);
-      }
-    } else {
-      console.warn('⚠️ OpenAI API key not found');
-    }
-    
-    // Groq - Fallback provider (free but has tool calling issues)
-    if (import.meta.env.VITE_GROQ_API_KEY) {
-      try {
+        console.log('✅ OpenAI provider loaded (PRIMARY - GPT-4o-mini)');
+      }).catch(error => {
+        console.error('Failed to load OpenAI provider:', error);
+      });
+    } else if (import.meta.env.VITE_GROQ_API_KEY) {
+      import('./providers/groq').then(({ GroqProvider }) => {
         providers.groq = new GroqProvider({
           apiKey: import.meta.env.VITE_GROQ_API_KEY,
-          model: 'llama-3.3-70b-versatile' // Updated model name
+          model: 'llama-3.3-70b-versatile'
         });
-        console.log('✅ Groq provider initialized (FALLBACK - Free tier)');
-      } catch (error) {
-        console.error('Failed to initialize Groq provider:', error);
-      }
-    } else {
-      console.warn('⚠️ Groq API key not found');
-    }
-    
-    // Gemini - Second fallback (has quota issues)
-    if (import.meta.env.VITE_GEMINI_API_KEY) {
-      try {
-        providers.gemini = new GeminiProvider({
-          apiKey: import.meta.env.VITE_GEMINI_API_KEY,
-          model: 'gemini-1.5-pro'
-        });
-        console.log('✅ Gemini provider initialized (FALLBACK 2)');
-      } catch (error) {
-        console.error('Failed to initialize Gemini provider:', error);
-      }
-    } else {
-      console.warn('⚠️ Gemini API key not found');
-    }
-    
-    // Local models - Through container at port 8006 (optional)
-    try {
-      providers.local = new LocalModelsProvider({
-        baseUrl: import.meta.env.VITE_LOCAL_MODELS_URL || 'http://localhost:8006'
+        console.log('✅ Groq provider loaded (PRIMARY - Free tier)');
+      }).catch(error => {
+        console.error('Failed to load Groq provider:', error);
       });
-    } catch (error) {
-      console.warn('Local models provider not available');
+    } else {
+      console.warn('⚠️ No API keys found - will try Gemini as fallback');
     }
-    
+
+    // Store loader for fallback chain
+    (providers as any)._loader = providerLoader;
+
     return providers;
   }
   

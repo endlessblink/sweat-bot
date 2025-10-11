@@ -39,24 +39,12 @@ export const exerciseLoggerTool = {
         timestamp: new Date().toISOString()
       };
       
-      // Send to backend (using correct endpoint: /exercises/log)
+      // Send to backend using authenticated fetch (with automatic token refresh)
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-      const token = await (await import('../../utils/auth')).getOrCreateGuestToken();
+      const { apiPost, parseJsonResponse } = await import('../../utils/api');
 
-      const response = await fetch(`${backendUrl}/exercises/log`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(exerciseData)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to log exercise: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
+      const response = await apiPost(`${backendUrl}/exercises/log`, exerciseData);
+      const result = await parseJsonResponse(response);
 
       // Get points from backend response (Points v3 calculated)
       const backendPoints = result.points_earned || 0;

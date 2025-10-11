@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Import our modules
 from app.core.config import settings
 from app.core.database import create_database_tables, engine, get_db
-from app.api.v1 import auth, exercises, chat, onboarding, memory, profile
+from app.api.v1 import auth, exercises, chat, onboarding, memory, profile, ai_chat
 from app.api.v1.auth import get_current_user_ws
 from app.api.endpoints import goals
 from app.api import points
@@ -227,6 +227,7 @@ app.include_router(points_v2.router, prefix="/api/points/v2", tags=["points-v2"]
 app.include_router(points_v3_router, tags=["points-v3"])  # v3 includes prefix in router definition
 app.include_router(goals.router, prefix="/api/goals", tags=["goals"])
 app.include_router(stt.router, tags=["speech-to-text"])  # STT includes prefix in router definition
+app.include_router(ai_chat.router, prefix="/api/v1/ai", tags=["ai-proxy"])  # Secure AI proxy
 
 # WebSocket endpoint
 @app.websocket("/ws")
