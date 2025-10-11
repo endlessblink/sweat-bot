@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: hebrew_fitness
       POSTGRES_USER: fitness_user
-      POSTGRES_PASSWORD: secure_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "8001:5432"
@@ -40,7 +40,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: redis-server --appendonly yes --requirepass sweatbot_redis_pass
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
 
   # MongoDB for Conversation Storage
   mongodb:
@@ -48,7 +48,7 @@ services:
     container_name: sweatbot_mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: sweatbot
-      MONGO_INITDB_ROOT_PASSWORD: secure_password
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
     ports:
       - "8002:27017"
     volumes:
@@ -96,18 +96,21 @@ services:
       dockerfile: Dockerfile
     container_name: sweatbot_backend
     environment:
-      - DATABASE_URL=postgresql+asyncpg://fitness_user:secure_password@postgres:5432/hebrew_fitness
-      - REDIS_URL=redis://:sweatbot_redis_pass@redis:6379/0
-      - MONGODB_URL=mongodb://sweatbot:secure_password@mongodb:27017/
-      - DATABASE_URL_EXTERNAL=postgresql+asyncpg://fitness_user:secure_password@localhost:8001/hebrew_fitness
-      - REDIS_URL_EXTERNAL=redis://:sweatbot_redis_pass@localhost:8003/0
-      - MONGODB_URL_EXTERNAL=mongodb://sweatbot:secure_password@localhost:8002/
-      - SECRET_KEY=your-super-secret-key-change-in-production
+      - DATABASE_URL=postgresql+asyncpg://fitness_user:${POSTGRES_PASSWORD}@postgres:5432/hebrew_fitness
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - MONGODB_URL=mongodb://sweatbot:${MONGODB_PASSWORD}@mongodb:27017/
+      - DATABASE_URL_EXTERNAL=postgresql+asyncpg://fitness_user:${POSTGRES_PASSWORD}@localhost:8001/hebrew_fitness
+      - REDIS_URL_EXTERNAL=redis://:${REDIS_PASSWORD}@localhost:8003/0
+      - MONGODB_URL_EXTERNAL=mongodb://sweatbot:${MONGODB_PASSWORD}@localhost:8002/
+      - SECRET_KEY=${SECRET_KEY}
       - ALGORITHM=HS256
-      - DEBUG=True
+      - DEBUG=${DEBUG}
       - CORS_ORIGINS=http://localhost:8000,http://localhost:8004,http://localhost:4445
       - WHISPER_MODEL_SIZE=base
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=${LOG_LEVEL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     ports:
       - "8000:8000"
     volumes:
