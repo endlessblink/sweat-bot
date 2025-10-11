@@ -47,62 +47,39 @@ export class SweatBotAgent {
     console.log('✅ SweatBotAgent initialized with secure backend proxy');
   }
 
-  // MongoDB persistence methods (keep memory functionality for conversation storage)
-  private memory = {
-      addMessage: async (msg: any) => {
-        // Add to local cache first for immediate UI updates
-        this.conversationHistory.push({
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date().toISOString()
-        });
+  // MongoDB persistence method
+  private async persistMessage(role: string, content: string): Promise<void> {
+    try {
+      const token = await getOrCreateGuestToken();
 
-        // Keep last 20 messages in memory
-        if (this.conversationHistory.length > 20) {
-          this.conversationHistory = this.conversationHistory.slice(-20);
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/memory/message`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: this.userId,
+          message: {
+            role,
+            content,
+            timestamp: new Date().toISOString()
+          },
+          sessionId: this.sessionId
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.session_id) {
+          this.sessionId = result.session_id;
         }
-
-        // Persist to MongoDB backend
-        try {
-          const token = await getOrCreateGuestToken();
-
-          const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/memory/message`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              userId: this.userId,
-              message: {
-                role: msg.role,
-                content: msg.content,
-                timestamp: new Date().toISOString()
-              },
-              sessionId: this.sessionId
-            })
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            // Store session ID for future messages
-            if (result.session_id) {
-              this.sessionId = result.session_id;
-            }
-            console.log('✅ Message persisted to MongoDB:', result.session_id);
-          } else {
-            console.warn('⚠️ Failed to persist message to MongoDB, using local cache only');
-          }
-        } catch (error) {
-          console.warn('⚠️ MongoDB persistence failed (offline?), message saved locally:', error);
-          // Message still in local cache, so conversation continues
-        }
-      },
-
-      getContext: () => {
-        return this.conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n');
+        console.log('✅ Message persisted to MongoDB:', result.session_id);
       }
-    };
+    } catch (error) {
+      console.warn('⚠️ MongoDB persistence failed (offline?), message saved locally:', error);
+    }
+  }
 
   private async loadConversationHistory(): Promise<void> {
     if (this.memoryInitialized) return;
@@ -296,9 +273,9 @@ export class SweatBotAgent {
       this.conversationHistory.push({role: 'user', content: cleanMessage, timestamp: new Date().toISOString()});
       this.conversationHistory.push({role: 'assistant', content: finalResponse, timestamp: new Date().toISOString()});
 
-      // Persist to MongoDB
-      await this.memory.addMessage({role: 'user', content: cleanMessage});
-      await this.memory.addMessage({role: 'assistant', content: finalResponse});
+      // Persist to MongoDB (async, non-blocking)
+      this.persistMessage('user', cleanMessage).catch(err => console.warn('Failed to persist user message:', err));
+      this.persistMessage('assistant', finalResponse).catch(err => console.warn('Failed to persist assistant message:', err));
 
       if (isQuickBreakRequest) {
         this.conversationState.lastQuickWorkoutResponse = finalResponse;

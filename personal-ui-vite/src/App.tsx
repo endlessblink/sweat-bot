@@ -4,7 +4,6 @@ import VoltTest from './pages/VoltTest';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
 import PointsManagementPage from './pages/PointsManagementPage';
-import PointsTestPage from './pages/PointsTestPage';
 
 /**
  * SweatBot App - Vite Version with Volt Agent
@@ -22,7 +21,6 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/volt" element={<VoltTest />} />
         <Route path="/points" element={<PointsManagementPage />} />
-        <Route path="/points-test" element={<PointsTestPage />} />
       </Routes>
     </Router>
   );

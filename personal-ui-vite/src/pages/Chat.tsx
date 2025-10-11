@@ -127,16 +127,6 @@ const userRole = getUserRole();
               </button>
             )}
 
-            {/* Points Test Button */}
-            <button
-              onClick={() => navigate('/points-test')}
-              className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm flex items-center gap-2"
-              title="בדיקת נקודות"
-            >
-              <span>🧮</span>
-              <span className="hidden sm:inline">בדיקה</span>
-            </button>
-
             {/* Statistics Button */}
             <button
               onClick={() => setStatsOpen(true)}

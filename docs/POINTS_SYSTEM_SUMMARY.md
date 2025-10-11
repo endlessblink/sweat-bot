@@ -3,8 +3,7 @@
 ## 🎯 What We Built
 
 ### 1. Comprehensive Points Management Interface
-- **PointsManagementPage**: Full admin interface for configuring exercise points, achievements, and rules
-- **PointsTestPage**: Simple test interface to verify points calculation without authentication
+- **PointsManagementPage**: Full admin interface for configuring exercise points, achievements, and rules with built-in calculator
 - **Navigation Integration**: Added points management buttons to the main chat interface
 
 ### 2. Backend API System
@@ -46,17 +45,12 @@
 
 ### 1. Access Points Management
 1. Go to http://localhost:8005
-2. Click the "🏆 נקודות" button in the top header
+2. Click the "🏆 נקודות" button in the top header (admin only)
 3. Configure exercise points, achievements, and rules
-4. Save changes (requires admin privileges)
+4. Use the "Preview" tab to test calculations in real-time
+5. Save changes (requires admin privileges)
 
-### 2. Test Points Calculation
-1. Click the "🧮 בדיקה" button in the top header
-2. Select an exercise from the dropdown
-3. Adjust reps, sets, and weight
-4. See real-time points calculation with breakdown
-
-### 3. API Endpoints (for developers)
+### 2. API Endpoints (for developers)
 ```
 GET  /api/points/exercises     - Get exercise points config
 GET  /api/points/achievements  - Get achievements config
@@ -95,10 +89,9 @@ Total Points = Base Points × Reps × Sets × Reps_Multiplier × Sets_Multiplier
 - [x] Exercise points configuration
 - [x] Achievement system
 - [x] Points rules engine
-- [x] Real-time points calculator
+- [x] Real-time points calculator (Preview tab)
 - [x] Backend API endpoints
 - [x] Navigation integration
-- [x] Test page for verification
 
 ### 🔧 In Progress
 - [ ] Authentication integration for admin features
@@ -117,10 +110,11 @@ Total Points = Base Points × Reps × Sets × Reps_Multiplier × Sets_Multiplier
 ## 🧪 Testing
 
 ### Manual Testing
-1. Visit http://localhost:8005/points-test
-2. Select different exercises and adjust parameters
-3. Verify points calculation matches expected formula
-4. Test configuration changes in management interface
+1. Visit http://localhost:8005/points (admin access required)
+2. Navigate to the "Preview" tab
+3. Select different exercises and adjust parameters
+4. Verify points calculation matches expected formula
+5. Test configuration changes in the other tabs (Exercises, Achievements, Rules, Goals)
 
 ### API Testing
 ```bash
