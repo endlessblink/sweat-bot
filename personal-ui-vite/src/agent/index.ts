@@ -234,7 +234,6 @@ export class SweatBotAgent {
   }
   
   async chat(message: string): Promise<string> {
-    // Ensure the message is properly encoded (define outside try-catch for scope)
     const cleanMessage = this.sanitizeInput(message);
 
     try {
@@ -248,57 +247,102 @@ export class SweatBotAgent {
           enrichedMessage += `\n\nהצעות קודמות שיש להימנע מהן: ${this.conversationState.lastQuickWorkoutResponse}`;
         }
       }
-      
-      // Add conversation context to the message
-      const context = this.conversationHistory.length > 0 
-        ? `השיחה הקודמת:\n${this.conversationHistory.slice(-5).map(m => `${m.role}: ${m.content}`).join('\n')}\n\nהודעה חדשה: ${enrichedMessage}`
-        : enrichedMessage;
-      
-      // Call the agent with context
-      console.log('SweatBotAgent: Calling VoltAgent...');
-      const response = await this.agent.chat(context, {
-        userId: this.userId,
-        stream: false,
-        temperature: 0.9  // Higher temperature for more variety
+
+      // Build messages for backend AI proxy
+      const messages: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [
+        { role: 'system', content: this.getSystemPrompt() }
+      ];
+
+      // Add conversation context (last 5 messages)
+      this.conversationHistory.slice(-5).forEach(m => {
+        messages.push({
+          role: m.role as 'user' | 'assistant',
+          content: m.content
+        });
       });
-      console.log('SweatBotAgent: Got response from VoltAgent:', typeof response, response);
 
-      let finalResponse = response;
+      // Add current user message
+      messages.push({ role: 'user', content: enrichedMessage });
 
+      // Call backend AI proxy (SECURE - no API keys in frontend!)
+      console.log('🔒 SweatBotAgent: Calling secure backend proxy...');
+      const response = await aiClient.chat({
+        messages,
+        tools: this.tools.map(t => ({
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters
+        })),
+        temperature: 0.9  // Higher temperature for variety
+      });
+
+      console.log(`✅ Response from ${response.provider}/${response.model} - ${response.usage.total_tokens} tokens`);
+
+      let finalResponse = response.content;
+
+      // Handle tool calls from backend
+      if (response.tool_calls && response.tool_calls.length > 0) {
+        console.log(`🔧 Executing ${response.tool_calls.length} tool(s)...`);
+        const toolResults = await this.executeTools(response.tool_calls);
+        finalResponse = toolResults.map(r => r.result).join('\n\n');
+      }
+
+      // Sanitize response
       if (!isResponseSafe(finalResponse)) {
-        console.warn('Response contains function definitions, sanitizing:', finalResponse.substring(0, 100));
+        console.warn('Response contains function definitions, sanitizing');
         finalResponse = sanitizeResponse(finalResponse, { lastUserMessage: cleanMessage });
       }
-      
+
       // Store in conversation history
-      this.conversationHistory.push({role: 'user', content: cleanMessage});
-      this.conversationHistory.push({role: 'assistant', content: finalResponse});
-      
+      this.conversationHistory.push({role: 'user', content: cleanMessage, timestamp: new Date().toISOString()});
+      this.conversationHistory.push({role: 'assistant', content: finalResponse, timestamp: new Date().toISOString()});
+
+      // Persist to MongoDB
+      await this.memory.addMessage({role: 'user', content: cleanMessage});
+      await this.memory.addMessage({role: 'assistant', content: finalResponse});
+
       if (isQuickBreakRequest) {
         this.conversationState.lastQuickWorkoutResponse = finalResponse;
       }
-      
-      console.log('Final response to return:', finalResponse);
-      
-      // CRITICAL: Log exactly what we're about to return
-      console.log('=== FINAL RETURN FROM AGENT.CHAT ===');
-      console.log('About to return:', finalResponse);
-      console.log('Type:', typeof finalResponse);
-      console.log('Length:', finalResponse?.length);
-      console.log('Contains JSON?:', finalResponse?.includes('{"content"'));
-      console.log('=== END FINAL RETURN ===');
-      
-      // Ensure response is properly formatted
+
       return this.sanitizeOutput(finalResponse);
+
     } catch (error) {
-      console.error('SweatBot chat error:', error);
-      if (error instanceof Error) {
-        console.error('Error stack:', error.stack);
+      if (error instanceof RateLimitException) {
+        const hours = Math.floor(error.retryAfter / 3600);
+        return `⚠️ הגעת למגבלת ההודעות היומית (10 הודעות ביום חינם). נסה שוב בעוד ${hours} שעות, או שדרג לחשבון פרימיום לשימוש בלתי מוגבל! 🌟`;
       }
 
-      // No hardcoded fallbacks - let the user know there's a technical issue
-      return 'מצטער, יש בעיה טכנית כרגע. אנא נסה שוב בעוד רגע או בדוק את החיבור לשירות.';
+      console.error('SweatBot chat error:', error);
+      return 'מצטער, יש בעיה טכנית כרגע. אנא נסה שוב בעוד רגע.';
     }
+  }
+
+  /**
+   * Execute tools locally based on backend AI's tool calls
+   */
+  private async executeTools(toolCalls: Array<{id: string, name: string, arguments: string}>): Promise<any[]> {
+    const results = [];
+
+    for (const call of toolCalls) {
+      const tool = this.tools.find(t => t.name === call.name);
+      if (tool) {
+        try {
+          const args = JSON.parse(call.arguments);
+          console.log(`🔧 Executing tool: ${call.name} with args:`, args);
+          const result = await tool.execute(args);
+          results.push({ name: call.name, result });
+          console.log(`✅ Tool ${call.name} completed`);
+        } catch (error) {
+          console.error(`❌ Tool ${call.name} execution failed:`, error);
+          results.push({ name: call.name, result: 'כלי נכשל - נסה שוב' });
+        }
+      } else {
+        console.warn(`⚠️ Tool ${call.name} not found`);
+      }
+    }
+
+    return results;
   }
   
   private sanitizeInput(input: string): string {
@@ -335,26 +379,25 @@ export class SweatBotAgent {
   }
   
   async *chatStream(message: string) {
+    // Streaming not yet implemented with backend proxy
+    // Fall back to regular chat
     try {
-      const stream = await this.agent.chatStream(message, {
-        userId: this.userId
-      });
-
-      for await (const chunk of stream) {
-        yield chunk;
-      }
+      const response = await this.chat(message);
+      yield response;
     } catch (error) {
       console.error('SweatBot stream error:', error);
       yield 'מצטער, יש בעיה טכנית כרגע. נסה שוב בעוד רגע.';
     }
   }
-  
+
   getStatus() {
     return {
       userId: this.userId,
-      providers: Object.keys(this.agent.providers || {}),
-      tools: this.agent.tools?.length || 0,
-      memoryEnabled: !!this.agent.memory
+      proxyMode: true,  // Using secure backend proxy!
+      tools: this.tools?.length || 0,
+      memoryEnabled: true,
+      sessionId: this.sessionId,
+      messagesLoaded: this.conversationHistory.length
     };
   }
   
