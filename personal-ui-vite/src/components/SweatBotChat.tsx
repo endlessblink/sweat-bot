@@ -382,12 +382,19 @@ export default function SweatBotChat({
   // Handle voice input transcription
   const handleVoiceTranscript = (transcript: string) => {
     console.log('[SweatBotChat] Voice transcript received:', transcript);
-    // Set the transcript in the input field
+
+    if (!transcript || !transcript.trim()) {
+      console.warn('[SweatBotChat] Empty transcript received');
+      return;
+    }
+
+    // Set the transcript in the input field for visibility
     setMessage(transcript);
-    // Auto-send the message
-    setTimeout(() => {
-      sendMessage();
-    }, 100);
+
+    console.log('[SweatBotChat] Sending voice message:', transcript);
+
+    // Send the message directly (don't rely on state update timing)
+    handleQuickMessage(transcript);
   };
 
   // Handle UI component interactions
