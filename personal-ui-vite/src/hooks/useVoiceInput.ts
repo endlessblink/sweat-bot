@@ -49,9 +49,21 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [duration, setDuration] = useState(0);
 
-  // Refs
+  // Refs for stable callbacks
   const durationIntervalRef = useRef<number | null>(null);
   const recordingStartTimeRef = useRef<number | null>(null);
+  const optionsRef = useRef(options);
+  const recordingStateRef = useRef({ isRecording: false, isProcessing: false });
+
+  // Update refs when options change
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
+
+  // Sync state with refs
+  useEffect(() => {
+    recordingStateRef.current = { isRecording, isProcessing };
+  }, [isRecording, isProcessing]);
 
   /**
    * Request microphone permission
@@ -73,9 +85,15 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
   }, [onError]);
 
   /**
-   * Start recording
+   * Start recording - Memoized with stable refs
    */
   const startRecording = useCallback(async () => {
+    // Check current state from ref to avoid stale closures
+    if (recordingStateRef.current.isRecording || recordingStateRef.current.isProcessing) {
+      console.warn('[useVoiceInput] Already recording or processing');
+      return;
+    }
+
     console.log('🎤 [useVoiceInput] ===== START RECORDING CALLED =====');
     try {
       setError(null);
@@ -84,11 +102,9 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       // Check permission first
       if (hasPermission === null) {
         console.log('🎤 [useVoiceInput] No permission yet, requesting...');
-        const granted = await requestPermission();
-        if (!granted) {
-          console.log('❌ [useVoiceInput] Permission denied');
-          return;
-        }
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+        setHasPermission(true);
         console.log('✅ [useVoiceInput] Permission granted');
       }
 
@@ -113,14 +129,22 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
     } catch (err) {
       console.error('❌ [useVoiceInput] Failed to start recording:', err);
       setError('Failed to start recording');
-      if (onError) onError(err as Error);
+
+      if (optionsRef.current.onError) {
+        optionsRef.current.onError(err as Error);
+      }
     }
-  }, [hasPermission, requestPermission, onError]);
+  }, [hasPermission]); // Minimal dependencies - most accessed via refs
 
   /**
-   * Stop recording and transcribe
+   * Stop recording and transcribe - Memoized with stable refs
    */
   const stopRecording = useCallback(async () => {
+    if (!recordingStateRef.current.isRecording) {
+      console.warn('[useVoiceInput] Not currently recording');
+      return;
+    }
+
     console.log('🛑 [useVoiceInput] ===== STOP RECORDING CALLED =====');
     try {
       // Check if actually recording
@@ -146,6 +170,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
 
       console.log('✅ [useVoiceInput] Recording confirmed, proceeding to stop...');
       setIsRecording(false);
+      setIsProcessing(true);
 
       // Stop duration counter
       if (durationIntervalRef.current) {
@@ -164,35 +189,42 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       }
 
       // Auto-transcribe if enabled
-      if (autoTranscribe) {
-        setIsProcessing(true);
-
+      if (optionsRef.current.autoTranscribe) {
         try {
-          const text = await voiceInputService.transcribe(audioBlob, language);
+          const text = await voiceInputService.transcribe(
+            audioBlob,
+            optionsRef.current.language || 'he'
+          );
           setTranscript(text);
           setDuration(0);
 
           // Callback
-          if (onTranscript && text) {
-            onTranscript(text);
+          if (optionsRef.current.onTranscript && text) {
+            optionsRef.current.onTranscript(text);
           }
 
           console.log('[useVoiceInput] Transcription completed:', text);
         } catch (transcribeError) {
           console.error('[useVoiceInput] Transcription failed:', transcribeError);
           setError('Transcription failed. Please try again.');
-          if (onError) onError(transcribeError as Error);
-        } finally {
-          setIsProcessing(false);
+
+          if (optionsRef.current.onError) {
+            optionsRef.current.onError(transcribeError as Error);
+          }
         }
       }
     } catch (err) {
       console.error('[useVoiceInput] Failed to stop recording:', err);
       setError('Failed to stop recording');
       setDuration(0);
-      if (onError) onError(err as Error);
+
+      if (optionsRef.current.onError) {
+        optionsRef.current.onError(err as Error);
+      }
+    } finally {
+      setIsProcessing(false);
     }
-  }, [autoTranscribe, language, onTranscript, onError]);
+  }, []); // Empty dependencies - all state accessed via refs
 
   /**
    * Cancel recording without transcription
@@ -265,21 +297,98 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
 
 /**
  * Push-to-talk hook - simplified interface for button press/release
+ * Includes mobile touch event debouncing to prevent double-firing
  */
 export function usePushToTalk(options: UseVoiceInputOptions = {}) {
   const voiceInput = useVoiceInput(options);
+  const touchTimeoutRef = useRef<number | null>(null);
+  const lastTouchTime = useRef<number>(0);
+  const isProcessingTouch = useRef<boolean>(false);
 
-  const handlePressStart = useCallback(async () => {
-    console.log('👆 [usePushToTalk] BUTTON PRESSED (onMouseDown/onTouchStart)');
-    await voiceInput.startRecording();
-    console.log('👆 [usePushToTalk] startRecording() completed');
+  // Debounced start handler to prevent double-taps
+  const handlePressStart = useCallback(async (event?: Event) => {
+    const now = Date.now();
+
+    // Prevent rapid double-taps (common on Android/mobile)
+    if (now - lastTouchTime.current < 200) {
+      console.log('[usePushToTalk] Ignoring rapid double-tap');
+      return;
+    }
+
+    // Prevent multiple simultaneous processing
+    if (isProcessingTouch.current) {
+      console.log('[usePushToTalk] Already processing touch start');
+      return;
+    }
+
+    isProcessingTouch.current = true;
+    lastTouchTime.current = now;
+
+    // Clear any pending timeout
+    if (touchTimeoutRef.current) {
+      window.clearTimeout(touchTimeoutRef.current);
+      touchTimeoutRef.current = null;
+    }
+
+    try {
+      console.log('👆 [usePushToTalk] BUTTON PRESSED (debounced)');
+
+      // Prevent default to avoid mobile browser conflicts
+      if (event) {
+        event.preventDefault();
+      }
+
+      await voiceInput.startRecording();
+      console.log('👆 [usePushToTalk] startRecording() completed');
+    } catch (error) {
+      console.error('[usePushToTalk] Start recording error:', error);
+    } finally {
+      isProcessingTouch.current = false;
+    }
   }, [voiceInput]);
 
-  const handlePressEnd = useCallback(async () => {
-    console.log('👇 [usePushToTalk] BUTTON RELEASED (onMouseUp/onTouchEnd)');
-    await voiceInput.stopRecording();
-    console.log('👇 [usePushToTalk] stopRecording() completed');
+  // Debounced end handler with small delay
+  const handlePressEnd = useCallback(async (event?: Event) => {
+    // Clear any existing timeout
+    if (touchTimeoutRef.current) {
+      window.clearTimeout(touchTimeoutRef.current);
+    }
+
+    // Debounce end events with 50ms delay
+    touchTimeoutRef.current = window.setTimeout(async () => {
+      if (isProcessingTouch.current) {
+        console.log('[usePushToTalk] Still processing start - delaying end');
+        return;
+      }
+
+      isProcessingTouch.current = true;
+
+      try {
+        console.log('👇 [usePushToTalk] BUTTON RELEASED (debounced)');
+
+        if (event) {
+          event.preventDefault();
+        }
+
+        await voiceInput.stopRecording();
+        console.log('👇 [usePushToTalk] stopRecording() completed');
+      } catch (error) {
+        console.error('[usePushToTalk] Stop recording error:', error);
+      } finally {
+        isProcessingTouch.current = false;
+        touchTimeoutRef.current = null;
+      }
+    }, 50); // 50ms debounce for end events
   }, [voiceInput]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (touchTimeoutRef.current) {
+        window.clearTimeout(touchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return {
     ...voiceInput,

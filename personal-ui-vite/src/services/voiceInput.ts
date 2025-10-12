@@ -353,12 +353,27 @@ export class AudioRecorder {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
   private stream: MediaStream | null = null;
+  private isProcessingStop = false; // Safari double-event guard
+  private hasStarted = false; // Prevent multiple starts
+  private recordingId: string | null = null; // Unique session tracking
 
   /**
    * Request microphone permission and start recording
    */
   async startRecording(options: RecordingOptions = {}): Promise<void> {
+    // Prevent multiple simultaneous starts
+    if (this.hasStarted || this.isProcessingStop) {
+      console.warn('[AudioRecorder] Recording already in progress or stopping');
+      return;
+    }
+
     try {
+      // Generate unique recording session ID
+      this.recordingId = `recording_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log(`[AudioRecorder] Starting recording session: ${this.recordingId}`);
+
+      this.hasStarted = true;
+
       // Request microphone access
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -373,9 +388,13 @@ export class AudioRecorder {
 
       // Reset chunks
       this.audioChunks = [];
+      let dataEventCount = 0; // Track data events
 
       // Collect audio data
       this.mediaRecorder.ondataavailable = (event) => {
+        dataEventCount++;
+        console.log(`[AudioRecorder] Data available event #${dataEventCount} for ${this.recordingId}`);
+
         if (event.data.size > 0) {
           this.audioChunks.push(event.data);
         }
@@ -390,13 +409,13 @@ export class AudioRecorder {
 
         // Set up start handler
         this.mediaRecorder.onstart = () => {
-          console.log('[AudioRecorder] Recording started with', mimeType);
+          console.log(`[AudioRecorder] Recording started: ${this.recordingId} with ${mimeType}`);
           resolve();
         };
 
         // Set up error handler
         this.mediaRecorder.onerror = (event) => {
-          console.error('[AudioRecorder] Recording error:', event);
+          console.error(`[AudioRecorder] Recording error for ${this.recordingId}:`, event);
           reject(new Error('MediaRecorder error'));
         };
 
@@ -416,26 +435,65 @@ export class AudioRecorder {
    * Stop recording and return audio blob
    */
   async stopRecording(): Promise<Blob> {
+    // Critical: Prevent Safari double-stop processing
+    if (this.isProcessingStop || !this.mediaRecorder || !this.recordingId) {
+      console.warn('[AudioRecorder] Stop already processing or no active recording');
+      return new Blob([], { type: 'audio/webm' });
+    }
+
+    this.isProcessingStop = true;
+    const sessionId = this.recordingId;
+    console.log(`[AudioRecorder] Stopping recording session: ${sessionId}`);
+
     return new Promise((resolve, reject) => {
       if (!this.mediaRecorder) {
+        this.isProcessingStop = false;
         reject(new Error('No active recording'));
         return;
       }
 
+      let hasResolved = false; // Prevent double resolution
+
       this.mediaRecorder.onstop = () => {
+        if (hasResolved) {
+          console.warn(`[AudioRecorder] Double stop event detected for ${sessionId} - ignoring`);
+          return;
+        }
+
+        hasResolved = true;
+        console.log(`[AudioRecorder] Stop event processed for ${sessionId}`);
+
         // Combine chunks into single blob
         const audioBlob = new Blob(this.audioChunks, {
           type: this.mediaRecorder?.mimeType || 'audio/webm',
         });
 
+        console.log(`[AudioRecorder] Recording stopped, blob size: ${audioBlob.size} bytes`);
+
         // Clean up
         this.cleanup();
 
-        console.log('[AudioRecorder] Recording stopped, blob size:', audioBlob.size);
         resolve(audioBlob);
       };
 
+      // Timeout safety for stuck recordings
+      const stopTimeout = setTimeout(() => {
+        if (!hasResolved) {
+          console.error(`[AudioRecorder] Stop timeout for ${sessionId}`);
+          hasResolved = true;
+          this.cleanup();
+          reject(new Error('Stop recording timeout'));
+        }
+      }, 5000);
+
       this.mediaRecorder.stop();
+
+      // Clear timeout when resolved (wrap original resolve)
+      const originalResolve = resolve;
+      resolve = (blob: Blob) => {
+        clearTimeout(stopTimeout);
+        originalResolve(blob);
+      };
     });
   }
 
@@ -453,38 +511,70 @@ export class AudioRecorder {
    * Check if currently recording
    */
   isRecording(): boolean {
-    return this.mediaRecorder !== null && this.mediaRecorder.state === 'recording';
+    return this.hasStarted &&
+           this.mediaRecorder !== null &&
+           this.mediaRecorder.state === 'recording' &&
+           !this.isProcessingStop;
   }
 
   /**
    * Clean up resources
    */
   private cleanup(): void {
+    console.log(`[AudioRecorder] Cleaning up session: ${this.recordingId}`);
+
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
       this.stream = null;
     }
+
     this.mediaRecorder = null;
     this.audioChunks = [];
+    this.hasStarted = false;
+    this.isProcessingStop = false;
+    this.recordingId = null;
   }
 
   /**
    * Get best supported mime type for recording
+   * iOS/Safari have specific codec preferences
    */
   private getBestMimeType(): string {
-    const types = [
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+    // iOS Safari has specific codec preferences
+    if (isIOS || isSafari) {
+      const safariTypes = [
+        'audio/mp4',
+        'audio/webm;codecs=opus',
+        'audio/webm',
+      ];
+
+      for (const type of safariTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          console.log(`[AudioRecorder] Using Safari-optimized codec: ${type}`);
+          return type;
+        }
+      }
+    }
+
+    // Standard codec fallback for other browsers
+    const standardTypes = [
       'audio/webm;codecs=opus',
       'audio/webm',
       'audio/ogg;codecs=opus',
       'audio/mp4',
     ];
 
-    for (const type of types) {
+    for (const type of standardTypes) {
       if (MediaRecorder.isTypeSupported(type)) {
+        console.log(`[AudioRecorder] Using standard codec: ${type}`);
         return type;
       }
     }
 
+    console.warn('[AudioRecorder] No preferred codec supported, using webm fallback');
     return 'audio/webm'; // Fallback
   }
 }
