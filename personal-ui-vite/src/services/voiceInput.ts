@@ -45,7 +45,11 @@ export class BackendSTTProvider implements STTProvider {
                     audioBlob.type.includes('ogg') ? 'ogg' :
                     audioBlob.type.includes('mp4') ? 'm4a' : 'webm';
 
-    console.log(`[BackendSTT] Sending ${audioBlob.size} bytes to ${backendUrl}, language=${language}`);
+    console.log(`🌐 [BackendSTT] Transcription request:`);
+    console.log(`   URL: ${backendUrl}/api/v1/stt/transcribe`);
+    console.log(`   Blob size: ${audioBlob.size} bytes`);
+    console.log(`   Blob type: ${audioBlob.type} → ${fileExt}`);
+    console.log(`   Language: ${language}`);
 
     // Append file with correct extension
     formData.append('file', audioBlob, `audio.${fileExt}`);
@@ -57,18 +61,28 @@ export class BackendSTTProvider implements STTProvider {
     const hebrewPrompt = 'תרגילים: סקוואטים, שכיבות סמיכה, מתיחות, ברפיס, דדליפט, ספסל, קילו, חזרות';
     formData.append('prompt', hebrewPrompt);
 
+    console.log('📤 [BackendSTT] Sending request...');
+    const startTime = performance.now();
+
     const response = await fetch(`${backendUrl}/api/v1/stt/transcribe`, {
       method: 'POST',
       body: formData,
     });
 
+    const responseTime = performance.now() - startTime;
+    console.log(`📥 [BackendSTT] Response received in ${responseTime.toFixed(0)}ms, status: ${response.status}`);
+
     if (!response.ok) {
       const error = await response.text();
+      console.error(`❌ [BackendSTT] HTTP ${response.status} error:`, error);
       throw new Error(`Backend STT error: ${response.status} - ${error}`);
     }
 
     const result = await response.json();
-    console.log('[BackendSTT] Response:', result.language, 'duration:', result.duration);
+    console.log('✅ [BackendSTT] Transcription successful!');
+    console.log(`   Text: "${result.text}"`);
+    console.log(`   Language: ${result.language}`);
+    console.log(`   Duration: ${result.duration}s`);
     return result.text;
   }
 }

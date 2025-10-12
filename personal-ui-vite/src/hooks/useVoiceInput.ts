@@ -181,37 +181,51 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
 
       // Get audio blob
       const audioBlob = await audioRecorder.stopRecording();
-      console.log('[useVoiceInput] Recording stopped, blob size:', audioBlob.size);
+      console.log('📦 [useVoiceInput] Recording stopped, blob size:', audioBlob.size, 'type:', audioBlob.type);
 
       // Check if blob has data
       if (audioBlob.size === 0) {
-        throw new Error('No audio data recorded');
+        const error = 'No audio data recorded - microphone may not be working';
+        console.error('❌ [useVoiceInput]', error);
+        setError(error);
+        throw new Error(error);
       }
+
+      console.log('✅ [useVoiceInput] Audio blob valid, starting transcription...');
 
       // Auto-transcribe if enabled
       if (optionsRef.current.autoTranscribe) {
         try {
+          console.log('🎯 [useVoiceInput] Calling transcription service...');
           const text = await voiceInputService.transcribe(
             audioBlob,
             optionsRef.current.language || 'he'
           );
+
+          console.log('📝 [useVoiceInput] Transcription received:', text);
           setTranscript(text);
           setDuration(0);
 
           // Callback
           if (optionsRef.current.onTranscript && text) {
+            console.log('📤 [useVoiceInput] Calling onTranscript callback with:', text);
             optionsRef.current.onTranscript(text);
+          } else {
+            console.warn('⚠️ [useVoiceInput] No onTranscript callback or empty text');
           }
 
-          console.log('[useVoiceInput] Transcription completed:', text);
+          console.log('✅ [useVoiceInput] Transcription completed successfully!');
         } catch (transcribeError) {
-          console.error('[useVoiceInput] Transcription failed:', transcribeError);
-          setError('Transcription failed. Please try again.');
+          console.error('❌ [useVoiceInput] Transcription failed:', transcribeError);
+          const errorMessage = transcribeError instanceof Error ? transcribeError.message : 'Transcription failed';
+          setError(`Transcription error: ${errorMessage}`);
 
           if (optionsRef.current.onError) {
             optionsRef.current.onError(transcribeError as Error);
           }
         }
+      } else {
+        console.warn('⚠️ [useVoiceInput] autoTranscribe is disabled');
       }
     } catch (err) {
       console.error('[useVoiceInput] Failed to stop recording:', err);
