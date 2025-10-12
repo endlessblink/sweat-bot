@@ -51,31 +51,15 @@ export const workoutDetailsTool = {
       // Filter exercises based on period (extra safety)
       const now = new Date();
       let filteredExercises = exercises;
-      
-      switch (params.period) {
-        case 'today':
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          filteredExercises = mockExercises.filter(ex => 
-            new Date(ex.timestamp) >= today
-          );
-          break;
-        case 'week':
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          filteredExercises = mockExercises.filter(ex => 
-            new Date(ex.timestamp) >= weekAgo
-          );
-          break;
-        case 'month':
-          // Default - all 12 exercises are within a month
-          break;
-      }
-      
-      const totalPoints = filteredExercises.reduce((sum, ex) => sum + ex.points, 0);
-      
+
+      // Calculate total points
+      const totalPoints = filteredExercises.reduce((sum: number, ex: any) =>
+        sum + (ex.points_earned || 0), 0
+      );
+
       // Group by date for better display
-      const exercisesByDate: Record<string, typeof mockExercises> = {};
-      filteredExercises.forEach(exercise => {
+      const exercisesByDate: Record<string, any[]> = {};
+      filteredExercises.forEach((exercise: any) => {
         const date = new Date(exercise.timestamp).toLocaleDateString('he-IL', {
           weekday: 'short',
           day: 'numeric',
@@ -88,50 +72,59 @@ export const workoutDetailsTool = {
       });
       
       // Build detailed message
-      let message = `📊 **פירוט ${filteredExercises.length} האימונים שלך החודש:**\n\n`;
-      
+      const periodName = params.period === 'today' ? 'היום' :
+                        params.period === 'week' ? 'השבוע' :
+                        params.period === 'month' ? 'החודש' : 'כל הזמן';
+
+      let message = `📊 **פירוט ${filteredExercises.length} תרגילים ${periodName}:**\n\n`;
+
       Object.entries(exercisesByDate).forEach(([date, exercises]) => {
         message += `**${date}:**\n`;
-        exercises.forEach(ex => {
-          message += `• ${ex.hebrew_name}`;
+        exercises.forEach((ex: any) => {
+          message += `• ${ex.name_he}`;
           if (ex.sets && ex.reps) {
             message += ` - ${ex.sets}x${ex.reps}`;
           }
-          if (ex.weight) {
-            message += ` @ ${ex.weight}kg`;
+          if (ex.weight_kg) {
+            message += ` @ ${ex.weight_kg}kg`;
           }
-          if (ex.distance) {
-            message += ` - ${ex.distance}km`;
+          if (ex.distance_km) {
+            message += ` - ${ex.distance_km}km`;
           }
-          if (ex.duration) {
-            message += ` ב-${ex.duration} דקות`;
+          if (ex.duration_seconds) {
+            const minutes = Math.floor(ex.duration_seconds / 60);
+            message += ` ב-${minutes} דקות`;
           }
-          message += ` (+${ex.points} נקודות)\n`;
+          message += ` (+${ex.points_earned} נקודות)\n`;
         });
         message += '\n';
       });
-      
+
       message += `\n**סיכום:**\n`;
       message += `• סה"כ נקודות: ${totalPoints}\n`;
-      message += `• ממוצע לאימון: ${Math.round(totalPoints / filteredExercises.length)}\n`;
+      message += `• ממוצע לתרגיל: ${Math.round(totalPoints / filteredExercises.length)}\n`;
       message += `• ימי אימון: ${Object.keys(exercisesByDate).length}\n`;
-      
+
       // Category breakdown
-      const categories = filteredExercises.reduce((acc, ex) => {
-        acc[ex.category] = (acc[ex.category] || 0) + 1;
+      const categories = filteredExercises.reduce((acc: Record<string, number>, ex: any) => {
+        const cat = ex.category || 'אחר';
+        acc[cat] = (acc[cat] || 0) + 1;
         return acc;
-      }, {} as Record<string, number>);
-      
-      message += `\n**לפי קטגוריה:**\n`;
-      Object.entries(categories).forEach(([cat, count]) => {
-        const catHebrew: Record<string, string> = {
-          strength: 'כוח',
-          cardio: 'אירובי',
-          functional: 'פונקציונלי',
-          plyometric: 'פליומטרי'
-        };
-        message += `• ${catHebrew[cat] || cat}: ${count} תרגילים\n`;
-      });
+      }, {});
+
+      if (Object.keys(categories).length > 0) {
+        message += `\n**לפי קטגוריה:**\n`;
+        Object.entries(categories).forEach(([cat, count]) => {
+          const catHebrew: Record<string, string> = {
+            strength: 'כוח',
+            cardio: 'אירובי',
+            functional: 'פונקציונלי',
+            plyometric: 'פליומטרי',
+            flexibility: 'גמישות'
+          };
+          message += `• ${catHebrew[cat] || cat}: ${count} תרגילים\n`;
+        });
+      }
       
       return {
         success: true,

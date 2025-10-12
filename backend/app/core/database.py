@@ -60,11 +60,12 @@ async def get_db():
 async def init_db():
     """
     Initialize database tables
-    Creates all tables defined in models
+    Creates all tables defined in models (with checkfirst=True to skip existing)
     """
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database tables created")
+        # Use checkfirst=True to avoid errors when tables/indexes already exist
+        await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, checkfirst=True))
+    logger.info("Database tables initialized (existing tables preserved)")
 
 # Alias for compatibility with main.py
 async def create_database_tables():
