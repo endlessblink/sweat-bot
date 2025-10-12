@@ -81,15 +81,20 @@ export default function SweatBotChat({
 
   useEffect(() => {
     let ws: WebSocket | null = null;
-    
+
     const connectWebSocket = async () => {
       try {
         // Get authentication token first
         const { getOrCreateGuestToken } = await import('../utils/auth');
         const token = await getOrCreateGuestToken();
-        
+
+        // Use dynamic WebSocket URL utility
+        const { getWebSocketUrl } = await import('../utils/env');
+        const wsBaseUrl = getWebSocketUrl();
+
         // Connect to WebSocket with token as query parameter
-        const wsUrl = `${import.meta.env.VITE_BACKEND_URL.replace('http', 'ws')}/ws?token=${token}`;
+        const wsUrl = `${wsBaseUrl}/ws?token=${token}`;
+        console.log('[SweatBotChat] Connecting to WebSocket:', wsUrl);
         ws = new WebSocket(wsUrl);
         
         ws.onopen = () => {
@@ -169,7 +174,8 @@ export default function SweatBotChat({
         return;
       }
 
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const { getBackendUrl } = await import('../utils/env');
+      const backendUrl = getBackendUrl();
       const url = `${backendUrl}/api/memory/message`;
 
       console.log('[storeMessage] Fetching:', url);
@@ -202,7 +208,8 @@ export default function SweatBotChat({
       console.log('[handleLoadSession] Loading session:', sessionId);
       setIsLoading(true);
 
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const { getBackendUrl } = await import('../utils/env');
+      const backendUrl = getBackendUrl();
 
       // Use authenticated API wrapper with automatic token refresh
       const { apiGet, parseJsonResponse } = await import('../utils/api');

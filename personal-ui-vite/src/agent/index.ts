@@ -6,6 +6,7 @@
 import { aiClient, RateLimitException } from '../services/aiClient';
 import { sanitizeResponse, isResponseSafe } from './utils/responseSanitizer';
 import { getOrCreateGuestToken } from '../utils/auth';
+import { getBackendUrl } from '../utils/env';
 
 export interface SweatBotConfig {
   userId?: string;
@@ -52,7 +53,8 @@ export class SweatBotAgent {
     try {
       const token = await getOrCreateGuestToken();
 
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/memory/message`, {
+      const backendUrl = getBackendUrl();
+      const response = await fetch(`${backendUrl}/api/memory/message`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -87,8 +89,9 @@ export class SweatBotAgent {
     try {
       const token = await getOrCreateGuestToken();
 
+      const backendUrl = getBackendUrl();
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/memory/context/${this.userId}?limit=20`,
+        `${backendUrl}/api/memory/context/${this.userId}?limit=20`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -429,7 +432,8 @@ export class SweatBotAgent {
               duration_seconds: params.duration_minutes ? params.duration_minutes * 60 : undefined
             };
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exercises/log`, {
+            const backendUrl = getBackendUrl();
+            const response = await fetch(`${backendUrl}/exercises/log`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${token}`,
@@ -503,7 +507,8 @@ export class SweatBotAgent {
           try {
             const token = await getOrCreateGuestToken();
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exercises/statistics`, {
+            const backendUrl = getBackendUrl();
+            const response = await fetch(`${backendUrl}/exercises/statistics`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -553,7 +558,8 @@ export class SweatBotAgent {
           try {
             const token = await getOrCreateGuestToken();
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exercises/history`, {
+            const backendUrl = getBackendUrl();
+            const response = await fetch(`${backendUrl}/exercises/history`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -610,7 +616,8 @@ export class SweatBotAgent {
             const token = await getOrCreateGuestToken();
 
             if (params.action === 'reset' || params.action === 'clear') {
-              const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exercises/clear-all`, {
+              const backendUrl = getBackendUrl();
+              const response = await fetch(`${backendUrl}/exercises/clear-all`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -641,7 +648,8 @@ export class SweatBotAgent {
           try {
             const token = await getOrCreateGuestToken();
 
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/exercises/statistics`, {
+            const backendUrl = getBackendUrl();
+            const response = await fetch(`${backendUrl}/exercises/statistics`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'

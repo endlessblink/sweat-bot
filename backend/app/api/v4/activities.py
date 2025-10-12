@@ -94,7 +94,7 @@ class PointsBreakdownResponse(BaseModel):
 
 class CreateActivityResponse(BaseModel):
     """Response for POST /v1/activities"""
-    activity_id: UUID
+    activity_id: int  # BigInteger from database
     points: PointsBreakdownResponse
     streak: StreakInfo
     achievements_unlocked: List[AchievementUnlocked]
@@ -169,7 +169,7 @@ async def create_activity(
     # ================================================================
 
     activity_log = ActivityLog(
-        id=uuid4(),
+        # id is auto-increment BigInteger, don't set it manually
         user_id=current_user.id,
         exercise_type_id=exercise_type.id,
         started_at=request.started_at,
@@ -180,7 +180,7 @@ async def create_activity(
     )
 
     db.add(activity_log)
-    await db.flush()  # Get the activity ID
+    await db.flush()  # Get the auto-generated activity ID
 
     # ================================================================
     # STEP 3: CREATE EXERCISE-SPECIFIC DETAIL ENTRY
@@ -191,7 +191,7 @@ async def create_activity(
         if request.metrics.sets and request.metrics.reps:
             for set_index in range(request.metrics.sets):
                 strength_set = ActivityStrengthSet(
-                    id=uuid4(),
+                    # id is auto-increment, don't set it
                     activity_id=activity_log.id,
                     set_index=set_index + 1,
                     reps=request.metrics.reps[set_index] if set_index < len(request.metrics.reps) else request.metrics.reps[-1],
@@ -270,7 +270,7 @@ async def create_activity(
     breakdown_json = PointsEngine.generate_breakdown_json(calculation_result)
 
     points_calc = PointsCalculation(
-        id=uuid4(),
+        # id is auto-increment, don't set it
         activity_id=activity_log.id,
         user_id=current_user.id,
         exercise_type_id=exercise_type.id,

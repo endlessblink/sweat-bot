@@ -60,10 +60,13 @@ async def lifespan(app: FastAPI):
         # This would initialize Whisper model in production
 
         # Initialize Points Engine v3
-        logger.info("📊 Initializing Points Engine v3...")
-        from app.services.points_engine_v3 import points_engine_v3
-        await points_engine_v3.initialize()
-        logger.info("✅ Points Engine v3 initialized")
+        # TEMPORARILY DISABLED: v3 config loading causes WSL2 I/O hangs
+        # Moving to Points v4 (database-only configuration)
+        # logger.info("📊 Initializing Points Engine v3...")
+        # from app.services.points_engine_v3 import points_engine_v3
+        # await points_engine_v3.initialize()
+        # logger.info("✅ Points Engine v3 initialized")
+        logger.info("📊 Using Points Engine v4 (v3 initialization skipped)")
 
         logger.info("✅ SweatBot API startup complete!")
         
