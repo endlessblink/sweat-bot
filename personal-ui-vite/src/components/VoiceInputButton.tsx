@@ -105,16 +105,39 @@ export function VoiceInputButton({
       }}
       className={className}
     >
-      {/* Main Microphone Button */}
+      {/* Main Microphone Button - Push-to-Talk */}
       <button
-        onClick={async () => {
+        onMouseDown={(e) => {
+          e.preventDefault();
+          voiceInput.onPressStart(e.nativeEvent);
+        }}
+        onMouseUp={(e) => {
+          e.preventDefault();
+          voiceInput.onPressEnd(e.nativeEvent);
+        }}
+        onMouseLeave={(e) => {
+          // Stop recording if mouse leaves button while holding
           if (voiceInput.isRecording) {
-            console.log('🖱️ [VoiceButton] Click while recording - STOPPING');
-            await voiceInput.stopRecording();
-          } else if (!voiceInput.isProcessing) {
-            console.log('🖱️ [VoiceButton] Click while idle - STARTING');
-            await voiceInput.startRecording();
+            e.preventDefault();
+            voiceInput.onPressEnd(e.nativeEvent);
           }
+        }}
+        onTouchStart={(e) => {
+          e.preventDefault();
+          voiceInput.onPressStart(e.nativeEvent);
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          voiceInput.onPressEnd(e.nativeEvent);
+        }}
+        onTouchCancel={(e) => {
+          // Stop recording if touch is cancelled
+          e.preventDefault();
+          voiceInput.onPressEnd(e.nativeEvent);
+        }}
+        onContextMenu={(e) => {
+          // Prevent context menu on long press (mobile)
+          e.preventDefault();
         }}
         disabled={voiceInput.isProcessing}
         aria-label={getAriaLabel()}
@@ -136,6 +159,10 @@ export function VoiceInputButton({
           boxShadow: voiceInput.isRecording ? designTokens.shadows.lg : designTokens.shadows.sm,
           position: 'relative',
           overflow: 'hidden',
+          touchAction: 'manipulation', // Optimize touch response
+          userSelect: 'none', // Prevent text selection
+          WebkitTouchCallout: 'none', // Disable iOS callout
+          WebkitUserSelect: 'none',
         }}
       >
         {/* Icon based on state */}
