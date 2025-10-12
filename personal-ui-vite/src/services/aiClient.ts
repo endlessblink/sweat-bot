@@ -4,6 +4,7 @@
  */
 
 import { getOrCreateGuestToken } from '../utils/auth';
+import { getBackendUrl } from '../utils/env';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -48,10 +49,8 @@ export interface RateLimitError {
 }
 
 class AIClient {
-  private baseUrl: string;
-
-  constructor() {
-    this.baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  private getBaseUrl(): string {
+    return getBackendUrl();
   }
 
   /**
@@ -61,15 +60,27 @@ class AIClient {
   async chat(request: ChatRequest): Promise<ChatResponse> {
     try {
       const token = await getOrCreateGuestToken();
+      const baseUrl = this.getBaseUrl();
 
-      const response = await fetch(`${this.baseUrl}/api/v1/ai/chat`, {
+      // Debug logging for mobile troubleshooting
+      console.log('[AI CLIENT] Starting chat request');
+      console.log('[AI CLIENT] Base URL:', baseUrl);
+      console.log('[AI CLIENT] Token exists:', !!token);
+      console.log('[AI CLIENT] User Agent:', navigator.userAgent);
+
+      const response = await fetch(`${baseUrl}/api/v1/ai/chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        mode: 'cors',
         body: JSON.stringify(request)
       });
+
+      console.log('[AI CLIENT] Response status:', response.status);
+      console.log('[AI CLIENT] Response OK:', response.ok);
 
       if (response.status === 429) {
         // Rate limit exceeded
@@ -78,12 +89,15 @@ class AIClient {
       }
 
       if (!response.ok) {
+        console.error('[AI CLIENT] Response not OK:', response.status, response.statusText);
         const error = await response.json();
+        console.error('[AI CLIENT] Error body:', error);
         throw new Error(error.detail || 'AI service error');
       }
 
       const data: ChatResponse = await response.json();
       console.log(`✅ AI response from ${data.provider}/${data.model} - ${data.usage.total_tokens} tokens`);
+      console.log('[AI CLIENT] Success - response received');
 
       return data;
     } catch (error) {
@@ -91,6 +105,9 @@ class AIClient {
         throw error;  // Re-throw rate limit errors
       }
 
+      console.error('[AI CLIENT] Exception:', error);
+      console.error('[AI CLIENT] Error type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('[AI CLIENT] Error message:', error instanceof Error ? error.message : String(error));
       console.error('AI client error:', error);
       throw new Error(error instanceof Error ? error.message : 'AI service unavailable');
     }
@@ -102,8 +119,9 @@ class AIClient {
   async getModels() {
     try {
       const token = await getOrCreateGuestToken();
+      const baseUrl = this.getBaseUrl();
 
-      const response = await fetch(`${this.baseUrl}/api/v1/ai/models`, {
+      const response = await fetch(`${baseUrl}/api/v1/ai/models`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -126,8 +144,9 @@ class AIClient {
   async getUsageStats() {
     try {
       const token = await getOrCreateGuestToken();
+      const baseUrl = this.getBaseUrl();
 
-      const response = await fetch(`${this.baseUrl}/api/v1/ai/usage/stats`, {
+      const response = await fetch(`${baseUrl}/api/v1/ai/usage/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

@@ -566,6 +566,24 @@ export default function SweatBotChat({
 
   return (
     <>
+      <style>{`
+        .sweatbot-input::placeholder {
+          color: var(--placeholder-color, #ffffff) !important;
+          opacity: var(--placeholder-opacity, 1) !important;
+        }
+        .sweatbot-input::-webkit-input-placeholder {
+          color: var(--placeholder-color, #ffffff) !important;
+          opacity: var(--placeholder-opacity, 1) !important;
+        }
+        .sweatbot-input::-moz-placeholder {
+          color: var(--placeholder-color, #ffffff) !important;
+          opacity: var(--placeholder-opacity, 1) !important;
+        }
+        .sweatbot-input:-ms-input-placeholder {
+          color: var(--placeholder-color, #ffffff) !important;
+          opacity: var(--placeholder-opacity, 1) !important;
+        }
+      `}</style>
       {/* Stats Panel Overlay */}
       {showStatsPanel && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -674,12 +692,17 @@ export default function SweatBotChat({
             onKeyPress={handleKeyPress}
             placeholder="שלח הודעה או לחץ על המיקרופון..."
             disabled={isLoading}
-            className="flex-1 bg-neutral-950 text-white placeholder-neutral-500 px-3 py-2 rounded-md border border-neutral-800 focus:outline-none focus:border-white text-sm disabled:opacity-50"
+            className="flex-1 bg-neutral-950 text-white placeholder-white sweatbot-input px-3 py-2 rounded-md border border-neutral-800 focus:outline-none focus:border-white text-sm disabled:opacity-50"
             style={{
               fontFamily: 'system-ui, -apple-system, Arial, "Noto Sans Hebrew", sans-serif',
               direction: 'rtl',
               textAlign: 'right',
-              unicodeBidi: 'embed'
+              unicodeBidi: 'embed',
+              '--placeholder-color': '#ffffff',
+              '--placeholder-opacity': '1'
+            } as React.CSSProperties & {
+              '--placeholder-color'?: string;
+              '--placeholder-opacity'?: string;
             }}
           />
           {/* Voice Input Button */}

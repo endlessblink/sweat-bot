@@ -24,13 +24,20 @@ export interface STTProvider {
 
 export class BackendSTTProvider implements STTProvider {
   name = 'Backend STT (Groq SDK)';
-  private backendUrl: string;
 
-  constructor() {
-    this.backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  private getBackendUrl(): string {
+    // Import dynamically to avoid circular dependencies
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        return `${window.location.protocol}//${window.location.host}`;
+      }
+    }
+    return import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
   }
 
   async transcribe(audioBlob: Blob, language: string = 'he'): Promise<string> {
+    const backendUrl = this.getBackendUrl();
     const formData = new FormData();
 
     // Detect file extension
@@ -38,7 +45,7 @@ export class BackendSTTProvider implements STTProvider {
                     audioBlob.type.includes('ogg') ? 'ogg' :
                     audioBlob.type.includes('mp4') ? 'm4a' : 'webm';
 
-    console.log(`[BackendSTT] Sending ${audioBlob.size} bytes to backend, language=${language}`);
+    console.log(`[BackendSTT] Sending ${audioBlob.size} bytes to ${backendUrl}, language=${language}`);
 
     // Append file with correct extension
     formData.append('file', audioBlob, `audio.${fileExt}`);
@@ -50,7 +57,7 @@ export class BackendSTTProvider implements STTProvider {
     const hebrewPrompt = 'תרגילים: סקוואטים, שכיבות סמיכה, מתיחות, ברפיס, דדליפט, ספסל, קילו, חזרות';
     formData.append('prompt', hebrewPrompt);
 
-    const response = await fetch(`${this.backendUrl}/api/v1/stt/transcribe`, {
+    const response = await fetch(`${backendUrl}/api/v1/stt/transcribe`, {
       method: 'POST',
       body: formData,
     });

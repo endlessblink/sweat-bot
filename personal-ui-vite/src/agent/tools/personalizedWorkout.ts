@@ -26,7 +26,8 @@ export const personalizedWorkoutTool = {
   execute: async (params: PersonalizedWorkoutParams) => {
     try {
       // Build API request
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const { getBackendUrl } = await import('../../utils/env');
+      const backendUrl = getBackendUrl();
       const { apiGet, parseJsonResponse } = await import('../../utils/api');
 
       const queryParams = new URLSearchParams({

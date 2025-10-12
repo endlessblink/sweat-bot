@@ -40,7 +40,8 @@ export const exerciseLoggerTool = {
       };
       
       // Send to backend using authenticated fetch (with automatic token refresh)
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const { getBackendUrl } = await import('../../utils/env');
+      const backendUrl = getBackendUrl();
       const { apiPost, parseJsonResponse } = await import('../../utils/api');
 
       const response = await apiPost(`${backendUrl}/exercises/log`, exerciseData);

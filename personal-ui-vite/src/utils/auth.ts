@@ -14,6 +14,8 @@
  * - Guest users: Same keys but with is_guest: true
  */
 
+import { getBackendUrl } from './env';
+
 const TOKEN_KEY = 'sweatbot_auth_token';
 const USER_KEY = 'sweatbot_user';
 const DEVICE_ID_KEY = 'sweatbot_device_id';
@@ -87,8 +89,9 @@ export async function getOrCreateGuestToken(): Promise<string> {
   // Create new guest user
   try {
     const deviceId = getOrCreateDeviceId();
+    const backendUrl = getBackendUrl();
 
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/guest`, {
+    const response = await fetch(`${backendUrl}/auth/guest`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -151,7 +154,8 @@ export function clearAuth(): void {
  * @returns Authentication token data
  */
 export async function loginUser(username: string, password: string): Promise<AuthToken> {
-  const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/login`, {
+  const backendUrl = getBackendUrl();
+  const response = await fetch(`${backendUrl}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -251,8 +255,9 @@ export async function refreshAuthToken(): Promise<boolean> {
     }
 
     console.log('🔄 Refreshing authentication token...');
+    const backendUrl = getBackendUrl();
 
-    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/refresh`, {
+    const response = await fetch(`${backendUrl}/auth/refresh`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${currentToken}`,

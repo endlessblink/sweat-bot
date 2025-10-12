@@ -33,7 +33,8 @@ export const workoutDetailsTool = {
       const days = daysMap[params.period];
 
       // Fetch real exercise history from backend
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const { getBackendUrl } = await import('../../utils/env');
+      const backendUrl = getBackendUrl();
       const { apiGet, parseJsonResponse } = await import('../../utils/api');
 
       const response = await apiGet(`${backendUrl}/api/v1/exercises/history?days=${days}`);

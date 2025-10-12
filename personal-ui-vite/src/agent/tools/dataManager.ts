@@ -74,7 +74,8 @@ export const dataManagerTool = {
       
       // Get valid authentication token (same as exerciseLogger)
       const token = await getOrCreateGuestToken();
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const { getBackendUrl } = await import('../../utils/env');
+      const backendUrl = getBackendUrl();
 
       const response = await fetch(`${backendUrl}${endpoint}`, {
         method,

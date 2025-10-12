@@ -9,14 +9,29 @@
  * - In development (localhost): use configured VITE_BACKEND_URL
  */
 export function getBackendUrl(): string {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  const port = window.location.port;
+
+  console.log('[ENV] Location details:', {
+    hostname,
+    protocol,
+    port,
+    host: window.location.host,
+    origin: window.location.origin
+  });
+
   // If accessed via public domain, use same origin
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    const protocol = window.location.protocol;
-    return `${protocol}//${window.location.host}`;
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    const url = `${protocol}//${window.location.host}`;
+    console.log('[ENV] Using production URL:', url);
+    return url;
   }
 
   // For local development, use configured backend URL
-  return import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  const devUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  console.log('[ENV] Using development URL:', devUrl);
+  return devUrl;
 }
 
 /**
