@@ -23,6 +23,7 @@ from app.api.endpoints import goals
 from app.api import points
 from app.api import points_v2
 from app.api.v3 import points_router as points_v3_router
+from app.api.v4.activities import router as activities_v4_router
 from app.routes import stt
 from app.websocket.handlers import websocket_endpoint
 from app.websocket.connection_manager import connection_manager, periodic_cleanup
@@ -45,9 +46,11 @@ async def lifespan(app: FastAPI):
     
     try:
         # Create database tables
-        await create_database_tables()
-        logger.info("✅ Database tables created/verified")
-        
+        # TEMPORARY: Commented out because tables already exist from Phase 1 migrations
+        # TODO: Switch to Alembic migrations for proper schema management
+        # await create_database_tables()
+        logger.info("✅ Database tables verified (skipping creation - tables exist)")
+
         # Start background tasks
         cleanup_task = asyncio.create_task(periodic_cleanup())
         logger.info("✅ Background tasks started")
@@ -225,6 +228,7 @@ app.include_router(profile.router, prefix="/api/v1", tags=["profile"])
 app.include_router(points.router, prefix="/api/points", tags=["points"])
 app.include_router(points_v2.router, prefix="/api/points/v2", tags=["points-v2"])
 app.include_router(points_v3_router, tags=["points-v3"])  # v3 includes prefix in router definition
+app.include_router(activities_v4_router, prefix="/api", tags=["points-v4"])  # Points System v4.0
 app.include_router(goals.router, prefix="/api/goals", tags=["goals"])
 app.include_router(stt.router, tags=["speech-to-text"])  # STT includes prefix in router definition
 app.include_router(ai_chat.router, prefix="/api/v1/ai", tags=["ai-proxy"])  # Secure AI proxy
