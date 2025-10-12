@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     
     # CORS - Use string type and parse it manually
     CORS_ORIGINS_STR: str = Field(
-        default="http://localhost:8000,http://localhost:8001,http://localhost:8002,http://localhost:8003,http://localhost:8004,http://localhost:8005,http://localhost:8006,http://localhost:8007,http://localhost:8008,http://localhost:8009,http://localhost:8010,http://localhost:8011,http://localhost:8012,http://localhost:8013,http://localhost:8014,http://localhost:8015,http://localhost:8016,http://localhost:8017,http://localhost:8018,http://localhost:8019,http://localhost:8020,https://sweatbot.app",
+        default="http://localhost:8000,http://localhost:8001,http://localhost:8002,http://localhost:8003,http://localhost:8004,http://localhost:8005,http://localhost:8006,http://localhost:8007,http://localhost:8008,http://localhost:8009,http://localhost:8010,http://localhost:8011,http://localhost:8012,http://localhost:8013,http://localhost:8014,http://localhost:8015,http://localhost:8016,http://localhost:8017,http://localhost:8018,http://localhost:8019,http://localhost:8020,https://sweat-bot.com",
         env="CORS_ALLOWED_ORIGINS"
     )
     

@@ -102,8 +102,8 @@ app = FastAPI(
 
 # Add security middleware
 app.add_middleware(
-    TrustedHostMiddleware, 
-    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0", "*"] if settings.DEBUG else ["sweatbot.com", "*.sweatbot.com"]
+    TrustedHostMiddleware,
+    allowed_hosts=["localhost", "127.0.0.1", "0.0.0.0", "*"] if settings.DEBUG else ["sweat-bot.com", "*.sweat-bot.com"]
 )
 
 # Add CORS middleware

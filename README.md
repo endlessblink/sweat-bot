@@ -1,168 +1,180 @@
 # SweatBot 💪 - Hebrew Fitness AI Tracker
 
-An intelligent Hebrew fitness tracking system with voice recognition, real-time coaching, and gamification.
-
-## 📚 Documentation
-
-**🚨 New engineers**: Start with the [`.agent/`](.agent/) directory for complete project documentation
-
-### Quick Documentation Links
-- **🏗️ System Architecture**: [`.agent/system/project_architecture.md`](.agent/system/project_architecture.md) - Complete tech overview
-- **🗄️ Database Schema**: [`.agent/system/database_schema.md`](.agent/system/database_schema.md) - Data layer documentation  
-- **🛠️ Development Workflow**: [`.agent/system/development_workflow.md`](.agent/system/development_workflow.md) - Daily development guide
-- **📋 SOPs**: [`.agent/sop/`](.agent/sop/) directory - Standard operating procedures
-- **🎯 Features**: [`.agent/tasks/`](.agent/tasks/) directory - Feature specifications and PRDs
-
-### Key Resources for Engineers
-1. **Project Setup**: Follow the [Development Workflow](.agent/system/development_workflow.md) for environment setup
-2. **Code Standards**: See [Development Standards](.agent/system/development_workflow.md#-coding-standards) for Python/TypeScript requirements
-3. **Database Changes**: Follow [Database Migration SOP](.agent/sop/database_migrations.md) for any schema modifications
-4. **New Exercises**: Follow [Adding New Exercises SOP](.agent/sop/adding_new_exercises.md) for exercise integration
-5. **Feature Development**: Check [Tasks Directory](.agent/tasks/) for PRDs and implementation plans
+An intelligent Hebrew fitness tracking system with natural language AI chat, exercise logging, and gamification.
 
 ## 🚀 Quick Start
 
-### Using Docker (Recommended)
+### Prerequisites
+- Docker Desktop
+- Python 3.11+
+- Node.js 18+ (with npm or bun)
+- Doppler CLI (for secrets management)
+
+### Launch (3 Commands)
 
 ```bash
-# Clone and setup
-git clone <repository-url>
-cd sweatbot
+# 1. Start databases
+cd config/docker && doppler run -- docker-compose up -d
 
-# Copy environment file and configure
-cp .env.example .env
-# Edit .env with your settings
+# 2. Start backend (new terminal)
+cd backend && doppler run -- python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-# Start all services
-docker-compose up -d
-
-# Check services status
-docker-compose ps
+# 3. Start frontend (new terminal)
+cd personal-ui-vite && doppler run -- npm run dev
 ```
 
-### Manual Development Setup
+**Access the app**: http://localhost:8005
 
+### Quick Health Check
 ```bash
-# Backend setup
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-
-# Database setup
-createdb sweatbot
-alembic upgrade head
-
-# Start backend
-uvicorn app.main:app --reload
-
-# Frontend setup (in new terminal)
-cd frontend
-npm install
-npm run dev
+curl http://localhost:8000/health/detailed
 ```
+
+## 🎯 What is SweatBot?
+
+SweatBot is a **natural language fitness tracker** that understands Hebrew and English. Chat naturally with the AI to:
+- Log exercises: *"עשיתי 20 סקוואטים"* or *"I did 20 squats"*
+- Check stats: *"כמה נקודות יש לי?"* or *"How many points do I have?"*
+- View history: *"מה האימונים שלי השבוע?"* or *"What are my workouts this week?"*
+- Get insights: *"תראה לי את ההתקדמות שלי"* or *"Show me my progress"*
+
+**No buttons. No forms. Just conversation.**
 
 ## 🏗️ Architecture
 
-### Technology Stack
-
-- **Backend**: FastAPI + Python 3.11
-- **Database**: PostgreSQL with AsyncPG
-- **Cache**: Redis
-- **AI/Voice**: OpenAI Whisper for Hebrew transcription
-- **Real-time**: WebSocket connections
-- **Frontend**: Next.js + TypeScript
-- **Deployment**: Docker + Docker Compose
-
-### Service Architecture
+### System Overview
 
 ```
-┌─────────────────────────────────┐
-│       Frontend (Next.js)        │
-├─────────────────────────────────┤
-│         API Gateway             │
-├─────────────────────────────────┤
-│    Backend Services (FastAPI)   │
-├─────────────────────────────────┤
-│   Database  │  Cache  │  Queue  │
-└─────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│              Frontend (Vite + React)                    │
+│  • Chat UI with Hebrew/English support                  │
+│  • Volt Agent (AI orchestration framework)             │
+│  • 5 SweatBot Tools (exercise logging, stats, etc.)    │
+│  Port 8005                                              │
+└───────────────────────┬─────────────────────────────────┘
+                        │ REST API
+┌───────────────────────┴─────────────────────────────────┐
+│              Backend (FastAPI + Python)                 │
+│  • Exercise API endpoints                               │
+│  • Statistics & workout history                         │
+│  • Authentication & user management                     │
+│  Port 8000                                              │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        ▼               ▼               ▼
+  ┌──────────┐    ┌──────────┐   ┌──────────┐
+  │PostgreSQL│    │ MongoDB  │   │  Redis   │
+  │ Exercise │    │   Chat   │   │  Cache   │
+  │   Data   │    │ History  │   │          │
+  │ Port 8001│    │Port 8002 │   │Port 8003 │
+  └──────────┘    └──────────┘   └──────────┘
 ```
 
-## 🎯 Core Features
+### Tech Stack
 
-### 1. Hebrew Voice Recognition
-- Real-time Hebrew voice transcription using Whisper
-- Exercise command parsing: "עשיתי 20 סקוואטים"
-- Support for exercise variations and Hebrew numbers
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend** | Vite + React + TypeScript | UI and chat interface |
+| **AI Framework** | Volt Agent | Tool orchestration and LLM routing |
+| **Backend** | FastAPI + Python 3.11 | REST API and business logic |
+| **Databases** | PostgreSQL, MongoDB, Redis | Exercise data, chat history, caching |
+| **AI Models** | GPT-4o-mini, Llama 3.3 70B, Gemini 1.5 Pro | Natural language understanding |
+| **Secrets** | Doppler | Environment variable management |
 
-### 2. Exercise Tracking
-- Comprehensive exercise logging
+### Port Allocation
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Backend API | 8000 | FastAPI REST endpoints |
+| PostgreSQL | 8001 | Exercise data storage |
+| MongoDB | 8002 | Chat history persistence |
+| Redis | 8003 | Session caching |
+| Frontend | 8005 | Vite development server |
+
+## 🎨 Key Features
+
+### 1. Natural Language AI Chat
+- **Bilingual**: Understands Hebrew and English naturally
+- **No patterns**: LLM-powered, not keyword matching
+- **Conversational**: Chat like you would with a personal trainer
+- **Memory**: Remembers context across the conversation
+
+### 2. Volt Agent Tool System
+SweatBot has 5 specialized tools:
+1. **exerciseLogger** - Logs exercises with automatic point calculation
+2. **statsRetriever** - Fetches user statistics and points
+3. **workoutDetails** - Shows workout history and patterns
+4. **dataManager** - Resets/clears data (with confirmation)
+5. **progressAnalyzer** - Analyzes trends and provides insights
+
+### 3. Exercise Tracking
+- Hebrew exercise name support
+- Automatic point calculation
 - Personal record detection
-- Workout session management
-- Historical data and analytics
+- Workout history with filtering
 
-### 3. Gamification System
-- Points and leveling system
-- Achievements and badges
-- Daily challenges
-- Streak tracking
-- Leaderboards
+### 4. Unified Design System
+- Consistent colors, typography, spacing
+- Design tokens in `personal-ui-vite/src/design-system/`
+- View components: http://localhost:8005/design-system
 
-### 4. Real-time Features
-- WebSocket-based real-time updates
-- Live coaching feedback
-- Achievement notifications
-- Progress updates
+## 📁 Project Structure
 
-## 📊 Development Methodologies
-
-This project uses both **Squad Engineering** and **BMAD Method** for structured development:
-
-### Squad Engineering Roles
-- **Backend Developer**: API design and database management
-- **Frontend Developer**: UI/UX and client-side features
-- **AI Engineer**: Voice processing and ML models
-- **QA Engineer**: Testing and quality assurance
-
-### BMAD Agents Available
-```bash
-# Run different BMAD agents
-npm run bmad:analyst      # Business analysis
-npm run bmad:pm          # Product management
-npm run bmad:architect   # System architecture
-npm run bmad:scrum       # Sprint planning
-npm run bmad:developer   # Development tasks
-npm run bmad:qa          # Quality assurance
-
-# Integrated BMAD-Squad commands
-npm run bmad-squad:team  # Team coordination
-npm run bmad-squad:feature  # Feature development
-npm run bmad-squad:sprint   # Sprint management
+```
+sweatbot/
+├── backend/                    # FastAPI backend
+│   ├── app/
+│   │   ├── main.py            # FastAPI entry point
+│   │   ├── api/               # REST API endpoints
+│   │   ├── models/            # Database models
+│   │   └── services/          # Business logic
+│   ├── requirements.txt       # Python dependencies
+│   └── scripts/               # Utility scripts
+│
+├── personal-ui-vite/          # Frontend (Vite + React)
+│   ├── src/
+│   │   ├── agent/             # Volt Agent configuration
+│   │   │   ├── index.ts       # Agent initialization
+│   │   │   └── tools/         # 5 SweatBot tools
+│   │   ├── design-system/     # Design tokens
+│   │   ├── components/        # React components
+│   │   └── App.tsx            # Main app component
+│   └── package.json
+│
+├── config/
+│   └── docker/                # Docker Compose configuration
+│       └── docker-compose.yml # Database services
+│
+├── docs/                      # Documentation
+│   ├── main-docs/             # Comprehensive guides
+│   └── screenshots-debug/     # Testing screenshots
+│
+├── CLAUDE.md                  # Development guidelines
+├── README.md                  # This file
+└── ARCHITECTURE.md            # Detailed technical docs
 ```
 
-## 🛠️ API Documentation
+## 🛠️ Development
 
-### Authentication Endpoints
-- `POST /auth/register` - User registration
-- `POST /auth/login` - User login
-- `GET /auth/me` - Current user info
-- `POST /auth/guest` - Create guest session
+### Environment Setup
 
-### Exercise Endpoints
-- `POST /exercises/log` - Log exercise with Hebrew support
-- `GET /exercises/history` - Exercise history
-- `GET /exercises/statistics` - User statistics
-- `GET /exercises/personal-records` - Personal records
-- `POST /exercises/parse-hebrew` - Parse Hebrew commands
+```bash
+# Install Doppler CLI (if not installed)
+# macOS
+brew install dopplerhq/cli/doppler
 
-### WebSocket Events
-- `client:voice_chunk` - Stream audio for transcription
-- `client:exercise_log` - Log exercise via WebSocket
-- `server:achievement` - Achievement notifications
-- `server:stats_update` - Real-time stats updates
+# Linux
+curl -sLf https://cli.doppler.com/install.sh | sh
 
-## 🧪 Testing
+# Login to Doppler
+doppler login
+
+# Setup project
+doppler setup
+```
+
+### Running Tests
 
 ```bash
 # Backend tests
@@ -170,110 +182,135 @@ cd backend
 pytest
 
 # Frontend tests
-cd frontend
+cd personal-ui-vite
 npm test
-
-# Integration tests
-docker-compose -f docker-compose.test.yml up --abort-on-container-exit
 ```
 
-## 📦 Deployment
+### Database Management
 
-### Development
 ```bash
-docker-compose up -d
+# Reset all data (use with caution)
+python backend/scripts/reset_all_data.py
+
+# Manual database access
+docker exec -it sweatbot_postgres psql -U fitness_user -d hebrew_fitness
+docker exec -it sweatbot_mongodb mongosh
+docker exec -it sweatbot_redis redis-cli -a sweatbot_redis_pass
 ```
 
-### Production
+### Common Issues
+
+#### "Database connection failed"
 ```bash
-# Use production profile
-docker-compose --profile production up -d
+# Check containers are running
+docker ps -a | grep sweatbot
 
-# With monitoring
-docker-compose --profile production --profile monitoring up -d
+# Restart with Doppler secrets
+cd config/docker
+docker-compose down
+doppler run -- docker-compose up -d
 ```
 
-### Environment Profiles
-- `default`: Development with hot reload
-- `production`: Optimized production build
-- `monitoring`: Prometheus + Grafana
-- `storage`: MinIO object storage
-
-## 🌍 Hebrew Language Support
-
-### Supported Exercise Types
-- **כוח (Strength)**: סקוואט, שכיבות סמיכה, דדליפט
-- **קרדיו (Cardio)**: ריצה, אופניים, שחייה
-- **פונקציונלי (Functional)**: ברפי, פלאנק, לאנג'ים
-
-### Voice Command Examples
-```
-"עשיתי 20 סקוואטים"
-"ביצעתי 3 סטים של 10 שכיבות סמיכה"
-"רצתי 5 קילומטר ב-25 דקות"
-"הרמתי 50 קילו בק סקווט"
-```
-
-## 🔧 Configuration
-
-### Key Environment Variables
+#### "Port already in use"
 ```bash
-# Database
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/sweatbot
+# Kill process on port 8000
+lsof -ti:8000 | xargs kill -9
+```
 
-# AI Configuration
-WHISPER_MODEL_SIZE=base  # tiny, base, small, medium, large
+#### "Frontend not loading"
+```bash
+# Reinstall dependencies
+cd personal-ui-vite
+rm -rf node_modules
+npm install
+```
+
+## 📚 Documentation
+
+- **[CLAUDE.md](CLAUDE.md)** - Development guidelines for AI assistants
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Detailed technical architecture
+- **[docs/main-docs/](docs/main-docs/)** - Comprehensive documentation
+  - Setup guides
+  - API documentation
+  - Testing guides
+  - Deployment instructions
+
+## 🧪 Testing Philosophy
+
+**Key Principle**: Never claim functionality works without E2E testing.
+
+- Use Playwright MCP for browser testing
+- Test complete user flows end-to-end
+- Verify responses are NOT hardcoded
+- Always test with clean databases
+
+## 🎯 Design Principles
+
+### 1. Natural Conversation Over UI
+- No forms unless absolutely necessary
+- Chat-first interaction model
+- AI understands intent from natural language
+
+### 2. Infrastructure-First Debugging
+When something breaks:
+1. Check database health first
+2. Verify environment variables loaded
+3. Test service connectivity
+4. Check authentication
+5. Only then debug application code
+
+### 3. Clean Data During Development
+- Never add demo/placeholder data
+- Always test with real user input
+- Use reset scripts between test sessions
+
+### 4. Design System Consistency
+- Import design tokens, never hardcode
+- Maintain visual consistency across components
+- Use the design system preview for reference
+
+## 🚀 Deployment
+
+### Production Checklist
+- [ ] Configure Doppler production environment
+- [ ] Set up production databases
+- [ ] Configure AI API keys (OpenAI, Groq, Gemini)
+- [ ] Enable CORS for production domain
+- [ ] Set up SSL/TLS certificates
+- [ ] Configure monitoring and logging
+
+### Environment Variables (via Doppler)
+```bash
+# Database connections
+DATABASE_URL=postgresql+asyncpg://...
+MONGODB_URL=mongodb://...
+REDIS_URL=redis://...
+
+# AI API Keys
+OPENAI_API_KEY=sk-...
+GROQ_API_KEY=gsk_...
+GEMINI_API_KEY=...
 
 # Security
-SECRET_KEY=your-256-bit-secret-key
+JWT_SECRET_KEY=...
+REDIS_PASSWORD=...
 ```
-
-### Model Configuration
-- **Whisper Model**: Configurable size (tiny to large)
-- **Hebrew Optimization**: Custom vocabulary and grammar rules
-- **Performance**: Model caching and warm-up strategies
-
-## 📈 Monitoring
-
-### Health Checks
-- `GET /health` - Application health
-- `GET /auth/health` - Authentication service
-- Database connection status
-- Redis connectivity
-
-### Metrics (Prometheus)
-- Request latency and throughput
-- WebSocket connection counts
-- Voice processing duration
-- Database query performance
 
 ## 🤝 Contributing
 
-1. Follow Squad Engineering principles
-2. Use BMAD agents for planning
-3. Write tests for new features
-4. Update documentation
-5. Ensure Hebrew language support
+See [CLAUDE.md](CLAUDE.md) for development guidelines.
 
-### Development Workflow
-```bash
-# Plan with BMAD agents
-npm run bmad:pm prioritize
+### Key Guidelines
+1. Use Like I Said MCP for task tracking
+2. Follow infrastructure-first debugging protocol
+3. Test with E2E tools before claiming functionality works
+4. Use design system tokens, never hardcode values
+5. Trust LLMs for natural language, avoid pattern matching
 
-# Coordinate with Squad
-npm run squad:sync
-
-# Implement with appropriate agent
-npm run bmad:developer implement feature-name
-
-# Test and validate
-npm run bmad:qa validate
-```
-
-## 📋 License
+## 📄 License
 
 MIT License - See LICENSE file for details.
 
 ---
 
-Built with ❤️ for the Hebrew fitness community using Squad Engineering and BMAD methodologies.
+**Built with modern AI-first architecture for natural fitness tracking in Hebrew 💪**

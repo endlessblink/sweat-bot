@@ -16,143 +16,41 @@ const workoutDetailsSchema = z.object({
 
 export type WorkoutDetailsParams = z.infer<typeof workoutDetailsSchema>;
 
-// Mock data for demonstration
-const mockExercises = [
-  {
-    id: '1',
-    name: 'Squats',
-    hebrew_name: 'סקוואטים',
-    sets: 3,
-    reps: 20,
-    points: 60,
-    timestamp: new Date().toISOString(),
-    category: 'strength'
-  },
-  {
-    id: '2',
-    name: 'Running',
-    hebrew_name: 'ריצה',
-    distance: 5,
-    duration: 25,
-    points: 75,
-    timestamp: new Date(Date.now() - 86400000).toISOString(),
-    category: 'cardio'
-  },
-  {
-    id: '3',
-    name: 'Push-ups',
-    hebrew_name: 'שכיבות סמיכה',
-    sets: 4,
-    reps: 15,
-    points: 45,
-    timestamp: new Date(Date.now() - 172800000).toISOString(),
-    category: 'strength'
-  },
-  {
-    id: '4',
-    name: 'Back Squat',
-    hebrew_name: 'בק סקווט',
-    sets: 5,
-    reps: 5,
-    weight: 50,
-    points: 100,
-    timestamp: new Date(Date.now() - 259200000).toISOString(),
-    category: 'strength'
-  },
-  {
-    id: '5',
-    name: 'Rope Climbs',
-    hebrew_name: 'טיפוסי חבל',
-    sets: 1,
-    reps: 4,
-    points: 40,
-    timestamp: new Date(Date.now() - 345600000).toISOString(),
-    category: 'functional'
-  },
-  {
-    id: '6',
-    name: 'Burpees',
-    hebrew_name: 'ברפיז',
-    sets: 3,
-    reps: 10,
-    points: 50,
-    timestamp: new Date(Date.now() - 432000000).toISOString(),
-    category: 'cardio'
-  },
-  {
-    id: '7',
-    name: 'Deadlift',
-    hebrew_name: 'דדליפט',
-    sets: 3,
-    reps: 8,
-    weight: 80,
-    points: 120,
-    timestamp: new Date(Date.now() - 518400000).toISOString(),
-    category: 'strength'
-  },
-  {
-    id: '8',
-    name: 'Box Jumps',
-    hebrew_name: 'קפיצות קופסה',
-    sets: 4,
-    reps: 12,
-    points: 48,
-    timestamp: new Date(Date.now() - 604800000).toISOString(),
-    category: 'plyometric'
-  },
-  {
-    id: '9',
-    name: 'Pull-ups',
-    hebrew_name: 'משיכות',
-    sets: 3,
-    reps: 8,
-    points: 55,
-    timestamp: new Date(Date.now() - 691200000).toISOString(),
-    category: 'strength'
-  },
-  {
-    id: '10',
-    name: 'Rowing',
-    hebrew_name: 'חתירה',
-    distance: 2,
-    duration: 8,
-    points: 40,
-    timestamp: new Date(Date.now() - 777600000).toISOString(),
-    category: 'cardio'
-  },
-  {
-    id: '11',
-    name: 'Wall Balls',
-    hebrew_name: 'וול בולס',
-    sets: 3,
-    reps: 20,
-    weight: 9,
-    points: 65,
-    timestamp: new Date(Date.now() - 864000000).toISOString(),
-    category: 'functional'
-  },
-  {
-    id: '12',
-    name: 'Double Unders',
-    hebrew_name: 'דאבל אנדרס',
-    sets: 5,
-    reps: 50,
-    points: 70,
-    timestamp: new Date(Date.now() - 950400000).toISOString(),
-    category: 'cardio'
-  }
-];
-
 export const workoutDetailsTool = {
   name: 'get_workout_details',
   description: 'Get detailed workout history with structured display',
   parameters: workoutDetailsSchema,
-  
+
   execute: async (params: WorkoutDetailsParams) => {
     try {
-      // Filter exercises based on period
+      // Calculate days based on period
+      const daysMap = {
+        'today': 1,
+        'week': 7,
+        'month': 30,
+        'all_time': 365
+      };
+      const days = daysMap[params.period];
+
+      // Fetch real exercise history from backend
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const { apiGet, parseJsonResponse } = await import('../../utils/api');
+
+      const response = await apiGet(`${backendUrl}/api/v1/exercises/history?days=${days}`);
+      const exercises = await parseJsonResponse(response);
+
+      // If no exercises, return helpful message
+      if (!exercises || exercises.length === 0) {
+        return {
+          success: true,
+          message: '📊 אין תרגילים לתקופה זו.\n\nהתחל לאמן ותראה את ההיסטוריה שלך כאן! 💪',
+          data: { exercises: [], totalPoints: 0, period: params.period }
+        };
+      }
+
+      // Filter exercises based on period (extra safety)
       const now = new Date();
-      let filteredExercises = [...mockExercises];
+      let filteredExercises = exercises;
       
       switch (params.period) {
         case 'today':

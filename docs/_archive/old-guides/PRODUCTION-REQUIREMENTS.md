@@ -294,35 +294,58 @@
 4. **Gamification** - Basic points exist, but no levels/achievements/challenges
 
 ### ❌ Not Yet Implemented
-1. **Voice Output (TTS)** - No speech responses
-2. **Nutrition Tracking** - No calorie or protein logging
-3. **Graphs & Charts** - No data visualization
-4. **Achievements System** - No badges or milestones
-5. **Challenges System** - No daily/weekly challenges
-6. **Streaks System** - No consistency tracking
-7. **Levels/XP System** - No progression tiers
-8. **Point History** - No audit log or breakdown view
-9. **Export/Reports** - No data export features
+1. **Full Mobile Support** - Not tested on real devices, no PWA
+2. **Voice Output (TTS)** - No speech responses
+3. **Nutrition Tracking** - No calorie or protein logging
+4. **Graphs & Charts** - No data visualization
+5. **Achievements System** - No badges or milestones
+6. **Challenges System** - No daily/weekly challenges
+7. **Streaks System** - No consistency tracking
+8. **Levels/XP System** - No progression tiers
+9. **Point History** - No audit log or breakdown view
+10. **Export/Reports** - No data export features
 
 ---
 
 ## 🎯 Recommended Implementation Order
 
+### Phase 0: Mobile Foundation (1-2 weeks) **← START HERE**
+**Goal:** Make the app work properly on mobile devices (CRITICAL)
+
+1. **PWA Setup** (2-3 days)
+   - Create manifest.json with app metadata
+   - Implement service worker for offline support
+   - Add install prompt for home screen
+   - Test PWA installation on iOS and Android
+
+2. **Mobile-First Responsive Design** (3-4 days)
+   - Audit current mobile layout issues
+   - Fix touch target sizes (min 44x44px)
+   - Optimize layouts for mobile screens
+   - Test on real devices (iPhone, Android)
+   - Add mobile keyboard handling
+
+3. **Mobile Voice Input** (2-3 days)
+   - Test MediaRecorder API on mobile browsers
+   - Add mobile-specific audio permissions
+   - Test with Bluetooth headsets
+   - Add mobile voice recording UI feedback
+
 ### Phase 1: Core Fitness Tracking (2-3 weeks)
 **Goal:** Complete exercise and nutrition tracking foundation
 
-1. **Voice Chat System** (1 week)
+4. **Voice Chat System** (1 week)
    - Implement Hebrew speech-to-text (Whisper integration)
    - Implement text-to-speech (Google TTS or Azure)
    - Add voice recording UI/UX improvements
 
-2. **Nutrition Tracking** (1 week)
+5. **Nutrition Tracking** (1 week)
    - Build food database (Israeli foods with Hebrew names)
    - Create calorie/protein logging tools
    - Add nutrition stats retrieval
    - Create daily nutrition goals system
 
-3. **Point System Documentation** (2-3 days)
+6. **Point System Documentation** (2-3 days)
    - Document all existing point formulas
    - Create point history table and API
    - Build point breakdown UI
@@ -331,46 +354,46 @@
 ### Phase 2: Gamification & Engagement (3-4 weeks)
 **Goal:** Complete extensive gamification system
 
-4. **Levels & XP System** (1 week)
+7. **Levels & XP System** (1 week)
    - Define level tiers and XP thresholds
    - Create XP calculation logic
    - Build level progression UI
    - Add level-up celebrations
 
-5. **Achievements & Badges** (1 week)
+8. **Achievements & Badges** (1 week)
    - Design achievement categories and milestones
    - Create achievements database schema
    - Implement achievement detection logic
    - Build achievement showcase UI
 
-6. **Challenges System** (1 week)
+9. **Challenges System** (1 week)
    - Create daily/weekly/monthly challenges
    - Build challenge progress tracking
    - Add challenge completion detection
    - Create leaderboards (optional)
 
-7. **Streaks System** (3-4 days)
-   - Implement workout streak tracking
-   - Add nutrition streak tracking
-   - Create streak milestones and rewards
-   - Build streak UI components
+10. **Streaks System** (3-4 days)
+    - Implement workout streak tracking
+    - Add nutrition streak tracking
+    - Create streak milestones and rewards
+    - Build streak UI components
 
 ### Phase 3: Analytics & Visualization (2-3 weeks)
 **Goal:** Complete data visualization and reporting
 
-8. **Graphs & Charts** (1 week)
-   - Implement exercise progression charts
-   - Add nutrition tracking graphs
-   - Create dashboard analytics view
-   - Build muscle group breakdown charts
+11. **Graphs & Charts** (1 week)
+    - Implement exercise progression charts
+    - Add nutrition tracking graphs
+    - Create dashboard analytics view
+    - Build muscle group breakdown charts
 
-9. **Tables & History** (3-4 days)
-   - Create exercise history table with filters
-   - Build personal records table
-   - Add workout summary table
-   - Create points history table
+12. **Tables & History** (3-4 days)
+    - Create exercise history table with filters
+    - Build personal records table
+    - Add workout summary table
+    - Create points history table
 
-10. **Export & Reports** (3-4 days)
+13. **Export & Reports** (3-4 days)
     - Implement PDF report generation
     - Add CSV data export
     - Create monthly summary reports
@@ -379,18 +402,18 @@
 ### Phase 4: Polish & Production Prep (2-3 weeks)
 **Goal:** Production-ready system with OAuth2, testing, monitoring
 
-11. **OAuth2 Authentication** (1 week - TASK-82150)
+14. **OAuth2 Authentication** (1 week - TASK-82150)
     - Implement user registration/login
     - Add password reset flow
     - Email verification (optional)
 
-12. **Testing & Quality** (1-2 weeks)
+15. **Testing & Quality** (1-2 weeks)
     - Backend test suite (TASK-13446)
     - Frontend test suite (TASK-90170)
     - E2E testing automation
     - Performance testing
 
-13. **Production Infrastructure** (3-5 days)
+16. **Production Infrastructure** (3-5 days)
     - CI/CD pipeline (TASK-61690)
     - Error monitoring (Sentry or similar)
     - Analytics tracking
@@ -403,7 +426,8 @@
 Once all features above are implemented, beta launch requires:
 
 ### Functional Requirements
-- [x] Users can log exercises (text and voice)
+- [x] Users can log exercises (text only, voice incomplete)
+- [ ] Users can log exercises via voice (Hebrew STT + TTS)
 - [ ] Users can log nutrition (calories and protein)
 - [ ] Users can see their points with clear breakdown
 - [ ] Users can earn achievements and badges
@@ -415,6 +439,7 @@ Once all features above are implemented, beta launch requires:
 
 ### Technical Requirements
 - [x] Backend API operational with secure AI proxy
+- [ ] **App works perfectly on mobile devices (PWA)**
 - [ ] OAuth2 authentication for user accounts
 - [ ] Database backups automated
 - [ ] Error monitoring active
@@ -423,10 +448,12 @@ Once all features above are implemented, beta launch requires:
 - [ ] CI/CD pipeline operational
 
 ### UX Requirements
-- [x] Hebrew UI with RTL support
-- [ ] Voice input and output working
-- [ ] Mobile-responsive design
-- [ ] Smooth animations and transitions
+- [x] Hebrew UI with RTL support (desktop only)
+- [ ] **Full mobile support (iOS + Android tested)**
+- [ ] **PWA installable on home screen**
+- [ ] Voice input and output working (desktop + mobile)
+- [ ] Mobile-responsive design with touch optimization
+- [ ] Smooth animations and transitions (60fps mobile)
 - [ ] Clear onboarding flow
 - [ ] Help documentation
 
@@ -434,14 +461,15 @@ Once all features above are implemented, beta launch requires:
 
 ## 🚀 Estimated Timeline
 
-**Total Development Time:** 8-12 weeks (2-3 months)
+**Total Development Time:** 10-14 weeks (2.5-3.5 months)
 
+- **Phase 0 (Mobile Foundation):** 1-2 weeks ← **START HERE**
 - **Phase 1 (Core Fitness):** 2-3 weeks
 - **Phase 2 (Gamification):** 3-4 weeks
 - **Phase 3 (Analytics):** 2-3 weeks
 - **Phase 4 (Production Prep):** 2-3 weeks
 
-**Beta Launch Target:** ~12 weeks from now (Early January 2026)
+**Beta Launch Target:** ~14 weeks from now (Mid-January 2026)
 
 ---
 

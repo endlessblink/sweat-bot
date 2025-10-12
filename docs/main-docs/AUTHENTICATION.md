@@ -12,7 +12,7 @@ SweatBot supports two types of users:
 
 **Primary Test Account:**
 - **Username**: `noamnau`
-- **Password**: `Noam123!`
+- **Password**: `Noam123`
 - **User ID**: `68ce092a-61c4-4338-8f48-261b3fa04b06`
 - **Email**: `noamnau@sweatbot.com`
 - **Full Name**: Noam Nau
@@ -25,7 +25,7 @@ Navigate to: `http://localhost:8005/login`
 
 Fill in:
 - Username: `noamnau`
-- Password: `Noam123!`
+- Password: `Noam123`
 
 Click "התחבר" (Login)
 
