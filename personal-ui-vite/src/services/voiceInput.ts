@@ -51,8 +51,18 @@ export class BackendSTTProvider implements STTProvider {
     console.log(`   Blob type: ${audioBlob.type} → ${fileExt}`);
     console.log(`   Language: ${language}`);
 
-    // Append file with correct extension
-    formData.append('file', audioBlob, `audio.${fileExt}`);
+    // Mobile-optimized FormData preparation
+    const isAndroid = /Android.*Chrome/.test(navigator.userAgent);
+    const fileObj = isAndroid
+      ? new File([audioBlob], `recording.${fileExt}`, { type: audioBlob.type })
+      : audioBlob;
+
+    if (isAndroid) {
+      console.log(`📱 [BackendSTT] Using Android-compatible File object`);
+    }
+
+    // Append file with proper mobile compatibility
+    formData.append('file', fileObj, `audio.${fileExt}`);
     formData.append('language', language);
     formData.append('model', 'whisper-large-v3');
     formData.append('temperature', '0');  // Most accurate
@@ -64,26 +74,49 @@ export class BackendSTTProvider implements STTProvider {
     console.log('📤 [BackendSTT] Sending request...');
     const startTime = performance.now();
 
-    const response = await fetch(`${backendUrl}/api/v1/stt/transcribe`, {
-      method: 'POST',
-      body: formData,
-    });
+    // Add mobile timeout handling
+    const timeout = 15000; // 15 seconds for mobile
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.error('📱 [BackendSTT] Request timeout - aborting');
+      controller.abort();
+    }, timeout);
 
-    const responseTime = performance.now() - startTime;
-    console.log(`📥 [BackendSTT] Response received in ${responseTime.toFixed(0)}ms, status: ${response.status}`);
+    try {
+      const response = await fetch(`${backendUrl}/api/v1/stt/transcribe`, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+        // Don't set Content-Type header - let browser set multipart boundary
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error(`❌ [BackendSTT] HTTP ${response.status} error:`, error);
-      throw new Error(`Backend STT error: ${response.status} - ${error}`);
+      clearTimeout(timeoutId);
+      const responseTime = performance.now() - startTime;
+      console.log(`📥 [BackendSTT] Response received in ${responseTime.toFixed(0)}ms, status: ${response.status}`);
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`❌ [BackendSTT] HTTP ${response.status} error:`, error);
+        throw new Error(`Backend STT error: ${response.status} - ${error}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ [BackendSTT] Transcription successful!');
+      console.log(`   Text: "${result.text}"`);
+      console.log(`   Language: ${result.language}`);
+      console.log(`   Duration: ${result.duration}s`);
+      return result.text;
+
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('📱 [BackendSTT] Request timed out after 15 seconds');
+        throw new Error('Mobile transcription timeout - please try again');
+      }
+
+      throw error;
     }
-
-    const result = await response.json();
-    console.log('✅ [BackendSTT] Transcription successful!');
-    console.log(`   Text: "${result.text}"`);
-    console.log(`   Language: ${result.language}`);
-    console.log(`   Duration: ${result.duration}s`);
-    return result.text;
   }
 }
 

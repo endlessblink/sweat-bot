@@ -7,6 +7,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { voiceInputService, audioRecorder } from '../services/voiceInput';
+import { mobileDebug } from '../utils/mobileDebugger';
 
 export interface VoiceInputState {
   isRecording: boolean;
@@ -94,27 +95,27 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       return;
     }
 
-    console.log('🎤 [useVoiceInput] ===== START RECORDING CALLED =====');
+    mobileDebug.log('🎤 Starting voice recording...');
     try {
       setError(null);
       setTranscript(null);
 
       // Check permission first
       if (hasPermission === null) {
-        console.log('🎤 [useVoiceInput] No permission yet, requesting...');
+        mobileDebug.log('🎤 Requesting microphone permission...');
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach(track => track.stop());
         setHasPermission(true);
-        console.log('✅ [useVoiceInput] Permission granted');
+        mobileDebug.success('✅ Microphone permission granted');
       }
 
       // Start recording
-      console.log('🎤 [useVoiceInput] Calling audioRecorder.startRecording()...');
+      mobileDebug.log('🎤 Calling audioRecorder.startRecording()...');
       await audioRecorder.startRecording();
-      console.log('✅ [useVoiceInput] audioRecorder.startRecording() completed');
+      mobileDebug.success('✅ Recording started successfully');
 
       setIsRecording(true);
-      console.log('✅ [useVoiceInput] State set to isRecording=true');
+      mobileDebug.log('✅ Voice recording state updated');
 
       // Start duration counter
       recordingStartTimeRef.current = Date.now();
@@ -145,30 +146,30 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       return;
     }
 
-    console.log('🛑 [useVoiceInput] ===== STOP RECORDING CALLED =====');
+    mobileDebug.log('🛑 Stopping voice recording...');
     try {
       // Check if actually recording
       const isCurrentlyRecording = audioRecorder.isRecording();
-      console.log(`🛑 [useVoiceInput] audioRecorder.isRecording() = ${isCurrentlyRecording}`);
+      mobileDebug.log(`🔍 Checking recording state: ${isCurrentlyRecording}`);
 
       if (!isCurrentlyRecording) {
-        console.warn('⚠️ [useVoiceInput] Stop called but not recording yet - waiting 200ms...');
+        mobileDebug.warn('⚠️ Stop called but not recording yet - waiting 200ms...');
         // Wait a bit for recording to start
         await new Promise(resolve => setTimeout(resolve, 200));
 
         // Check again
         const isRecordingNow = audioRecorder.isRecording();
-        console.log(`🛑 [useVoiceInput] After wait, audioRecorder.isRecording() = ${isRecordingNow}`);
+        mobileDebug.log(`🔍 After wait, recording state: ${isRecordingNow}`);
 
         if (!isRecordingNow) {
-          console.warn('❌ [useVoiceInput] Still not recording - cancelling');
+          mobileDebug.error('❌ Still not recording - cancelling stop');
           setIsRecording(false);
           setDuration(0);
           return;
         }
       }
 
-      console.log('✅ [useVoiceInput] Recording confirmed, proceeding to stop...');
+      mobileDebug.success('✅ Recording confirmed, proceeding to stop...');
       setIsRecording(false);
       setIsProcessing(true);
 
@@ -181,40 +182,53 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
 
       // Get audio blob
       const audioBlob = await audioRecorder.stopRecording();
-      console.log('📦 [useVoiceInput] Recording stopped, blob size:', audioBlob.size, 'type:', audioBlob.type);
+      mobileDebug.log('📦 Audio blob created:', {
+        size: audioBlob.size,
+        type: audioBlob.type,
+        isAndroid: /Android.*Chrome/.test(navigator.userAgent)
+      });
 
       // Check if blob has data
       if (audioBlob.size === 0) {
         const error = 'No audio data recorded - microphone may not be working';
-        console.error('❌ [useVoiceInput]', error);
+        mobileDebug.error('❌ Empty audio blob detected');
         setError(error);
         throw new Error(error);
       }
 
-      console.log('✅ [useVoiceInput] Audio blob valid, starting transcription...');
+      mobileDebug.success('✅ Audio blob valid, starting transcription...');
 
       // Auto-transcribe if enabled
       if (optionsRef.current.autoTranscribe) {
         try {
-          console.log('🎯 [useVoiceInput] Calling transcription service...');
+          mobileDebug.log('🎯 Calling transcription service...');
           const text = await voiceInputService.transcribe(
             audioBlob,
             optionsRef.current.language || 'he'
           );
 
-          console.log('📝 [useVoiceInput] Transcription received:', text);
+          mobileDebug.success('📝 Transcription completed:', {
+            text,
+            textLength: text.length,
+            language: optionsRef.current.language || 'he'
+          });
+
           setTranscript(text);
           setDuration(0);
 
           // Callback
           if (optionsRef.current.onTranscript && text) {
-            console.log('📤 [useVoiceInput] Calling onTranscript callback with:', text);
+            mobileDebug.log('📤 Calling onTranscript callback...');
             optionsRef.current.onTranscript(text);
+            mobileDebug.success('✅ onTranscript callback executed successfully');
           } else {
-            console.warn('⚠️ [useVoiceInput] No onTranscript callback or empty text');
+            mobileDebug.warn('⚠️ No callback or empty text:', {
+              hasCallback: !!optionsRef.current.onTranscript,
+              textLength: text?.length
+            });
           }
 
-          console.log('✅ [useVoiceInput] Transcription completed successfully!');
+          mobileDebug.success('🎉 Voice transcription flow completed!');
         } catch (transcribeError) {
           console.error('❌ [useVoiceInput] Transcription failed:', transcribeError);
           const errorMessage = transcribeError instanceof Error ? transcribeError.message : 'Transcription failed';
