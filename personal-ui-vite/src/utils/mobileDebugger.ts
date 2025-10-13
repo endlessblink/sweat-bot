@@ -11,15 +11,19 @@ export class MobileDebugger {
   private logs: string[] = [];
   private maxLogs = 50;
   private isEnabled = false;
+  private backendUrl: string;
 
   constructor() {
+    this.backendUrl = this.getBackendUrl();
     this.createDebugInterface();
+    this.interceptConsole();
   }
 
   private createDebugInterface() {
-    // Only create on mobile/touch devices
-    if (!('ontouchstart' in window) && !this.isAndroidChrome()) {
-      console.log('[MobileDebugger] Skipping - not a mobile device');
+    // Create on mobile/touch devices or in development mode
+    const isDevelopment = import.meta.env.DEV;
+    if (!('ontouchstart' in window) && !this.isAndroidChrome() && !isDevelopment) {
+      console.log('[MobileDebugger] Skipping - not a mobile device and not in development');
       return;
     }
 
@@ -251,6 +255,117 @@ export class MobileDebugger {
       this.logContainer.style.display = 'none';
     }
   }
+
+  private getBackendUrl(): string {
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        return `${window.location.protocol}//${window.location.host}`;
+      }
+    }
+    return import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  }
+
+  private interceptConsole(): void {
+    const originalConsole = {
+      log: console.log,
+      warn: console.warn,
+      error: console.error,
+      info: console.info,
+    };
+
+    // Override console methods to send logs to backend
+    console.log = (...args: any[]) => {
+      originalConsole.log(...args);
+      this.sendToBackend('info', args);
+    };
+
+    console.warn = (...args: any[]) => {
+      originalConsole.warn(...args);
+      this.sendToBackend('warn', args);
+    };
+
+    console.error = (...args: any[]) => {
+      originalConsole.error(...args);
+      this.sendToBackend('error', args);
+    };
+
+    console.info = (...args: any[]) => {
+      originalConsole.info(...args);
+      this.sendToBackend('info', args);
+    };
+
+    this.log('📡 Console interception enabled');
+  }
+
+  private async sendToBackend(level: string, args: any[]): Promise<void> {
+    try {
+      // Format the message
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2);
+          } catch {
+            return '[Object]';
+          }
+        }
+        return String(arg);
+      }).join(' ');
+
+      // Extract structured data from voice transcription patterns
+      let data: any = null;
+      if (message.includes('blob size:') || message.includes('Response received') || message.includes('Transcription') || message.includes('[BackendSTT]')) {
+        const blobSizeMatch = message.match(/blob size: (\d+) bytes/);
+        const responseTimeMatch = message.match(/Response received in (\d+)ms/);
+        const statusMatch = message.match(/status: (\d+)/);
+
+        if (blobSizeMatch || responseTimeMatch || statusMatch) {
+          data = {
+            blobSize: blobSizeMatch ? parseInt(blobSizeMatch[1]) : undefined,
+            responseTime: responseTimeMatch ? parseInt(responseTimeMatch[1]) : undefined,
+            status: statusMatch ? parseInt(statusMatch[1]) : undefined,
+            timestamp: new Date().toISOString(),
+          };
+        }
+      }
+
+      // Send to backend (non-blocking)
+      fetch(`${this.backendUrl}/api/v1/stt/debug-log`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          level,
+          message,
+          data,
+          source: 'mobile-debugger',
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch(err => {
+        // Silently fail to avoid infinite loops
+        originalConsole.warn('[MobileDebugger] Failed to send log:', err);
+      });
+
+    } catch (error) {
+      // Don't let logging errors break the app
+      console.warn('[MobileDebugger] Send error:', error);
+    }
+  }
+
+  // Method to test connection to backend
+  async testBackendConnection(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.backendUrl}/api/v1/stt/health`);
+      const result = await response.json();
+      this.log('🔗 Backend connection test successful', result);
+      return true;
+    } catch (error) {
+      this.error('Backend connection test failed', error);
+      return false;
+    }
+  }
 }
 
 // Create global instance for easy import
@@ -267,5 +382,8 @@ if (typeof window !== 'undefined') {
       screenWidth: window.screen.width,
       screenHeight: window.screen.height
     });
+
+    // Test backend connection
+    mobileDebug.testBackendConnection();
   }, 2000);
 }

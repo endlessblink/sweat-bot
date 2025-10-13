@@ -40,16 +40,52 @@ export class BackendSTTProvider implements STTProvider {
     const backendUrl = this.getBackendUrl();
     const formData = new FormData();
 
-    // Detect file extension
-    const fileExt = audioBlob.type.includes('webm') ? 'webm' :
-                    audioBlob.type.includes('ogg') ? 'ogg' :
-                    audioBlob.type.includes('mp4') ? 'm4a' : 'webm';
+    // MOBILE-SPECIFIC: Enhanced file extension detection for mobile audio formats
+    let fileExt: string;
+
+    if (audioBlob.type.includes('webm')) {
+      fileExt = 'webm';
+    } else if (audioBlob.type.includes('ogg')) {
+      fileExt = 'ogg';
+    } else if (audioBlob.type.includes('mp4')) {
+      fileExt = 'm4a';  // Use .m4a for MP4 audio
+    } else if (audioBlob.type.includes('aac')) {
+      fileExt = 'm4a';  // AAC codec -> .m4a extension
+    } else if (audioBlob.type.includes('mpeg')) {
+      fileExt = 'mp3';  // MPEG codec -> .mp3 extension
+    } else {
+      // MOBILE-SPECIFIC: Fallback based on user agent for mobile devices
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isAndroid = /Android/.test(navigator.userAgent);
+
+      if (isIOS) {
+        fileExt = 'm4a';  // iOS almost always produces AAC/M4A
+        console.log(`[BackendSTT] iOS detected - using .m4a extension fallback`);
+      } else if (isAndroid) {
+        fileExt = 'webm'; // Android typically supports WebM
+        console.log(`[BackendSTT] Android detected - using .webm extension fallback`);
+      } else {
+        fileExt = 'webm'; // Default fallback
+        console.log(`[BackendSTT] Unknown mobile type - using .webm extension fallback`);
+      }
+    }
 
     console.log(`🌐 [BackendSTT] Transcription request:`);
     console.log(`   URL: ${backendUrl}/api/v1/stt/transcribe`);
     console.log(`   Blob size: ${audioBlob.size} bytes`);
     console.log(`   Blob type: ${audioBlob.type} → ${fileExt}`);
     console.log(`   Language: ${language}`);
+
+    // CRITICAL: Validate audio blob before sending to backend
+    if (audioBlob.size === 0) {
+      const errorMsg = '❌ [BackendSTT] Empty audio blob - cannot transcribe';
+      console.error(errorMsg);
+      throw new Error('Audio recording failed - empty file');
+    }
+
+    if (audioBlob.size < 1024) {
+      console.warn(`⚠️ [BackendSTT] Very small audio blob (${audioBlob.size} bytes) - transcription may fail`);
+    }
 
     // Mobile-optimized FormData preparation
     const isAndroid = /Android.*Chrome/.test(navigator.userAgent);
@@ -65,7 +101,7 @@ export class BackendSTTProvider implements STTProvider {
     formData.append('file', fileObj, `audio.${fileExt}`);
     formData.append('language', language);
     formData.append('model', 'whisper-large-v3');
-    formData.append('temperature', '0');  // Most accurate
+    formData.append('temperature', 0);  // Most accurate - send as number, not string
 
     // Hebrew fitness terminology prompt
     const hebrewPrompt = 'תרגילים: סקוואטים, שכיבות סמיכה, מתיחות, ברפיס, דדליפט, ספסל, קילו, חזרות';
@@ -421,60 +457,124 @@ export class AudioRecorder {
 
       this.hasStarted = true;
 
-      // Request microphone access
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // MOBILE-SPECIFIC: Request microphone access with mobile constraints
+      const isMobile = /Mobile|Android|iPhone/.test(navigator.userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-      // Determine best mime type
+      // Mobile-specific audio constraints
+      const mobileConstraints = {
+        audio: isIOS ? {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          sampleRate: 44100,
+        } : {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: isMobile ? 16000 : 44100, // Lower sample rate for mobile
+        }
+      };
+
+      console.log(`[AudioRecorder] Using ${isIOS ? 'iOS' : (isMobile ? 'mobile' : 'desktop')} audio constraints`);
+
+      // Request microphone access with mobile-optimized constraints
+      this.stream = await navigator.mediaDevices.getUserMedia(mobileConstraints);
+
+      // MOBILE-SPECIFIC: Force stream to be active on mobile
+      if (isMobile) {
+        // Force audio tracks to be enabled on mobile browsers
+        this.stream.getAudioTracks().forEach(track => {
+          track.enabled = true;
+          console.log(`[AudioRecorder] Mobile audio track enabled: ${track.label}, state: ${track.readyState}`);
+        });
+      }
+
+      // Determine best mime type with mobile fallbacks
       const mimeType = options.mimeType || this.getBestMimeType();
 
-      // Create MediaRecorder
-      this.mediaRecorder = new MediaRecorder(this.stream, {
+      // MOBILE-SPECIFIC: Create MediaRecorder with mobile optimizations
+      const recorderOptions: MediaRecorderOptions = {
         mimeType,
-        audioBitsPerSecond: options.audioBitsPerSecond || 128000,
-      });
+      };
+
+      // Only add audioBitsPerSecond on non-iOS mobile (iOS doesn't support this option)
+      if (!isIOS && options.audioBitsPerSecond) {
+        recorderOptions.audioBitsPerSecond = isMobile ? 32000 : (options.audioBitsPerSecond || 128000);
+      }
+
+      this.mediaRecorder = new MediaRecorder(this.stream, recorderOptions);
 
       // Reset chunks
       this.audioChunks = [];
       let dataEventCount = 0; // Track data events
 
-      // Collect audio data
+      // Collect audio data with mobile-specific logging
       this.mediaRecorder.ondataavailable = (event) => {
         dataEventCount++;
-        console.log(`[AudioRecorder] Data available event #${dataEventCount} for ${this.recordingId}`);
+        console.log(`[AudioRecorder] Data available event #${dataEventCount} for ${this.recordingId}, size: ${event.data.size} bytes`);
 
         if (event.data.size > 0) {
           this.audioChunks.push(event.data);
+        } else {
+          console.warn(`[AudioRecorder] Empty chunk received on event #${dataEventCount}`);
         }
       };
 
-      // Wait for recording to actually start
+      // Wait for recording to actually start with mobile timeout handling
       await new Promise<void>((resolve, reject) => {
         if (!this.mediaRecorder) {
           reject(new Error('MediaRecorder not initialized'));
           return;
         }
 
-        // Set up start handler
+        // Set up start handler with mobile-specific logging
         this.mediaRecorder.onstart = () => {
           console.log(`[AudioRecorder] Recording started: ${this.recordingId} with ${mimeType}`);
+          console.log(`[AudioRecorder] Mobile state: ${isMobile ? 'mobile' : 'desktop'}, chunks: 0`);
           resolve();
         };
 
-        // Set up error handler
+        // Set up error handler with detailed mobile error logging
         this.mediaRecorder.onerror = (event) => {
-          console.error(`[AudioRecorder] Recording error for ${this.recordingId}:`, event);
-          reject(new Error('MediaRecorder error'));
+          const error = (event as any).error || new Error('MediaRecorder error');
+          console.error(`[AudioRecorder] Recording error for ${this.recordingId}:`, {
+            error: error.message,
+            name: error.name,
+            mobile: isMobile,
+            ios: isIOS,
+            mimeType,
+            recorderState: this.mediaRecorder?.state
+          });
+          reject(new Error(`MediaRecorder error: ${error.message}`));
         };
 
-        // Start recording
-        this.mediaRecorder.start(100); // Collect data every 100ms
+        // MOBILE-SPECIFIC: Use different start strategies for mobile
+        if (isIOS) {
+          // iOS: Start without timeslice (iOS handles this poorly)
+          console.log(`[AudioRecorder] iOS detected - starting without timeslice`);
+          this.mediaRecorder.start();
+        } else {
+          // Android/Other mobile: Use longer timeslice
+          const isAndroid = /Android.*Chrome/.test(navigator.userAgent);
+          const timeslice = isAndroid ? 3000 : (isMobile ? 2000 : 100);
+          console.log(`[AudioRecorder] Using ${timeslice}ms timeslice for ${isAndroid ? 'Android' : (isMobile ? 'mobile' : 'desktop')}`);
+          this.mediaRecorder.start(timeslice);
+        }
 
-        // Timeout after 2 seconds
-        setTimeout(() => reject(new Error('Recording start timeout')), 2000);
+        // Mobile needs longer timeout for initialization
+        const mobileTimeout = isMobile ? 5000 : 2000;
+        setTimeout(() => {
+          if (this.mediaRecorder?.state !== 'recording') {
+            reject(new Error(`Recording start timeout after ${mobileTimeout}ms - state: ${this.mediaRecorder?.state}`));
+          }
+        }, mobileTimeout);
       });
     } catch (error) {
       this.cleanup();
-      throw new Error(`Failed to start recording: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[AudioRecorder] Failed to start recording: ${errorMessage}`);
+      throw new Error(`Failed to start recording: ${errorMessage}`);
     }
   }
 
@@ -490,7 +590,8 @@ export class AudioRecorder {
 
     this.isProcessingStop = true;
     const sessionId = this.recordingId;
-    console.log(`[AudioRecorder] Stopping recording session: ${sessionId}`);
+    const isMobile = /Mobile|Android|iPhone/.test(navigator.userAgent);
+    console.log(`[AudioRecorder] Stopping recording session: ${sessionId} (mobile: ${isMobile})`);
 
     return new Promise((resolve, reject) => {
       if (!this.mediaRecorder) {
@@ -510,12 +611,47 @@ export class AudioRecorder {
         hasResolved = true;
         console.log(`[AudioRecorder] Stop event processed for ${sessionId}`);
 
+        // MOBILE-SPECIFIC: Mobile browsers often create small or empty chunks
+        console.log(`[AudioRecorder] Processing ${this.audioChunks.length} audio chunks for mobile compatibility`);
+
         // Combine chunks into single blob
         const audioBlob = new Blob(this.audioChunks, {
           type: this.mediaRecorder?.mimeType || 'audio/webm',
         });
 
-        console.log(`[AudioRecorder] Recording stopped, blob size: ${audioBlob.size} bytes`);
+        console.log(`[AudioRecorder] Recording stopped, blob size: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
+
+        // MOBILE-SPECIFIC: Enhanced validation for mobile recordings
+        if (audioBlob.size === 0) {
+          console.error(`[AudioRecorder] ❌ Empty audio blob detected - mobile recording failed`);
+          this.cleanup();
+          reject(new Error('Mobile audio recording failed - empty file created'));
+          return;
+        }
+
+        // Mobile recordings can be very small but still valid - use lower threshold
+        const mobileMinSize = isMobile ? 100 : 1024; // 100 bytes minimum for mobile
+        if (audioBlob.size < mobileMinSize) {
+          console.warn(`[AudioRecorder] ⚠️ Very small ${isMobile ? 'mobile' : 'desktop'} audio blob (${audioBlob.size} bytes) - may be invalid`);
+
+          // On mobile, try to continue with very small recordings rather than failing
+          if (audioBlob.size < 50) {
+            this.cleanup();
+            reject(new Error(`Audio recording too small: ${audioBlob.size} bytes`));
+            return;
+          }
+        }
+
+        // MOBILE-SPECIFIC: Additional mobile validation
+        if (isMobile && this.audioChunks.length === 0) {
+          console.error(`[AudioRecorder] ❌ Mobile recording failed - no chunks collected`);
+          this.cleanup();
+          reject(new Error('Mobile recording failed - no audio data collected'));
+          return;
+        }
+
+        // Mobile-specific success logging
+        console.log(`[AudioRecorder] ✅ Mobile recording successful: ${audioBlob.size} bytes from ${this.audioChunks.length} chunks`);
 
         // Clean up
         this.cleanup();
@@ -523,17 +659,44 @@ export class AudioRecorder {
         resolve(audioBlob);
       };
 
-      // Timeout safety for stuck recordings
+      // MOBILE-SPECIFIC: Mobile browsers may need more time to finalize recording
+      const mobileTimeout = isMobile ? 8000 : 5000; // 8 seconds for mobile, 5 for desktop
+
       const stopTimeout = setTimeout(() => {
         if (!hasResolved) {
-          console.error(`[AudioRecorder] Stop timeout for ${sessionId}`);
-          hasResolved = true;
-          this.cleanup();
-          reject(new Error('Stop recording timeout'));
-        }
-      }, 5000);
+          console.error(`[AudioRecorder] Stop timeout for ${sessionId} after ${mobileTimeout}ms`);
 
-      this.mediaRecorder.stop();
+          // MOBILE-SPECIFIC: Try to recover on mobile by creating blob from available chunks
+          if (isMobile && this.audioChunks.length > 0) {
+            console.warn(`[AudioRecorder] Mobile timeout recovery - creating blob from ${this.audioChunks.length} chunks`);
+            const recoveryBlob = new Blob(this.audioChunks, {
+              type: this.mediaRecorder?.mimeType || 'audio/webm',
+            });
+
+            hasResolved = true;
+            this.cleanup();
+
+            if (recoveryBlob.size > 50) {
+              console.log(`[AudioRecorder] ✅ Mobile recovery successful: ${recoveryBlob.size} bytes`);
+              resolve(recoveryBlob);
+            } else {
+              reject(new Error('Mobile recording timeout - recovery blob too small'));
+            }
+          } else {
+            hasResolved = true;
+            this.cleanup();
+            reject(new Error(`Stop recording timeout after ${mobileTimeout}ms`));
+          }
+        }
+      }, mobileTimeout);
+
+      // MOBILE-SPECIFIC: Force stop on mobile browsers that hang
+      if (isMobile && this.mediaRecorder.state === 'recording') {
+        console.log(`[AudioRecorder] Forcing mobile stop`);
+        this.mediaRecorder.stop();
+      } else {
+        this.mediaRecorder.stop();
+      }
 
       // Clear timeout when resolved (wrap original resolve)
       const originalResolve = resolve;
@@ -584,14 +747,57 @@ export class AudioRecorder {
 
   /**
    * Get best supported mime type for recording
-   * iOS/Safari have specific codec preferences
+   * Mobile browsers have very specific codec requirements and compatibility issues
    */
   private getBestMimeType(): string {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const isMobile = /Mobile|Android|iPhone/.test(navigator.userAgent);
 
-    // iOS Safari has specific codec preferences
-    if (isIOS || isSafari) {
+    console.log(`[AudioRecorder] Detecting best codec for: iOS=${isIOS}, Safari=${isSafari}, Android=${isAndroid}, Mobile=${isMobile}`);
+
+    // iOS Safari: Very limited codec support, must use mp4/aac
+    if (isIOS) {
+      const iosTypes = [
+        'audio/mp4;codecs=mp4a',   // Most reliable for iOS
+        'audio/mp4',                // iOS fallback
+        'audio/mp4;codecs=aac',     // AAC codec (may not work on all iOS versions)
+      ];
+
+      for (const type of iosTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          console.log(`[AudioRecorder] Using iOS-optimized codec: ${type}`);
+          return type;
+        }
+      }
+
+      console.warn('[AudioRecorder] No iOS-compatible codecs found, forcing audio/mp4');
+      return 'audio/mp4'; // iOS almost always supports basic mp4
+    }
+
+    // Android Chrome: WebM support varies by device, prioritize compatibility
+    if (isAndroid) {
+      const androidTypes = [
+        'audio/webm;codecs=opus',   // Modern Android
+        'audio/webm',               // Android fallback
+        'audio/ogg;codecs=opus',    // Some Android devices
+        'audio/mp4',                // Universal fallback
+      ];
+
+      for (const type of androidTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          console.log(`[AudioRecorder] Using Android-optimized codec: ${type}`);
+          return type;
+        }
+      }
+
+      console.warn('[AudioRecorder] No Android-compatible codecs found, using audio/mp4');
+      return 'audio/mp4';
+    }
+
+    // Safari Desktop: Different codec preferences
+    if (isSafari) {
       const safariTypes = [
         'audio/mp4',
         'audio/webm;codecs=opus',
@@ -606,23 +812,43 @@ export class AudioRecorder {
       }
     }
 
-    // Standard codec fallback for other browsers
-    const standardTypes = [
-      'audio/webm;codecs=opus',
-      'audio/webm',
-      'audio/ogg;codecs=opus',
-      'audio/mp4',
+    // Standard mobile browsers (not iOS/Android specific)
+    if (isMobile) {
+      const mobileTypes = [
+        'audio/webm;codecs=opus',   // Modern mobile
+        'audio/webm',               // Basic webm
+        'audio/ogg;codecs=opus',    // Alternative
+        'audio/mp4',                // Universal fallback
+      ];
+
+      for (const type of mobileTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          console.log(`[AudioRecorder] Using mobile-optimized codec: ${type}`);
+          return type;
+        }
+      }
+
+      console.warn('[AudioRecorder] No mobile codecs found, using audio/mp4');
+      return 'audio/mp4';
+    }
+
+    // Desktop browsers - use optimal codec quality
+    const desktopTypes = [
+      'audio/webm;codecs=opus',   // Best quality for desktop
+      'audio/webm',               // Basic webm
+      'audio/ogg;codecs=opus',    // Alternative
+      'audio/mp4',                // Fallback
     ];
 
-    for (const type of standardTypes) {
+    for (const type of desktopTypes) {
       if (MediaRecorder.isTypeSupported(type)) {
-        console.log(`[AudioRecorder] Using standard codec: ${type}`);
+        console.log(`[AudioRecorder] Using desktop codec: ${type}`);
         return type;
       }
     }
 
     console.warn('[AudioRecorder] No preferred codec supported, using webm fallback');
-    return 'audio/webm'; // Fallback
+    return 'audio/webm'; // Final fallback
   }
 }
 

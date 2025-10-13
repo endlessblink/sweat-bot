@@ -4,6 +4,9 @@ import VoltTest from './pages/VoltTest';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
 import PointsManagementPage from './pages/PointsManagementPage';
+import AudioTest from './pages/AudioTest';
+// Initialize mobile debugger for console log interception
+import './utils/mobileDebugger';
 
 /**
  * SweatBot App - Vite Version with Volt Agent
@@ -21,6 +24,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/volt" element={<VoltTest />} />
         <Route path="/points" element={<PointsManagementPage />} />
+        <Route path="/audio-test" element={<AudioTest />} />
       </Routes>
     </Router>
   );

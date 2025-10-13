@@ -64,7 +64,7 @@ class UserContextManager:
             # Store with 24 hour expiration
             await self.redis_client.setex(
                 context_key,
-                timedelta(hours=24).total_seconds(),
+                int(timedelta(hours=24).total_seconds()),
                 json.dumps(context_data, ensure_ascii=False)
             )
             
