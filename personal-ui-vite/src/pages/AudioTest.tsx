@@ -41,11 +41,32 @@ export default function AudioTest() {
     sendLogToBackend('🎤 Starting audio recording test');
 
     try {
+      // BLUESTACKS-SPECIFIC: Detect BlueStacks/Android emulator
+      const isBlueStacks = navigator.userAgent.includes('BlueStacks') ||
+                           navigator.userAgent.includes('SDK') ||
+                           window.location.hostname.includes('localhost');
+
+      addLog(`🔍 Device detection: BlueStacks=${isBlueStacks}, UA: ${navigator.userAgent.substring(0, 50)}...`);
+      sendLogToBackend('Device detection', {
+        isBlueStacks,
+        userAgent: navigator.userAgent.substring(0, 100),
+        hostname: window.location.hostname
+      });
+
       // Check microphone support
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        const error = 'Microphone API not supported';
+        const error = `Microphone API not supported${isBlueStacks ? ' (BlueStacks detected)' : ''}`;
         addLog(`❌ ${error}`);
         sendLogToBackend(error);
+
+        // BLUESTACKS-SPECIFIC: Provide BlueStacks troubleshooting
+        if (isBlueStacks) {
+          addLog('🔧 BlueStacks troubleshooting steps:');
+          addLog('   1. Enable microphone access in BlueStacks settings');
+          addLog('   2. Check Windows microphone permissions');
+          addLog('   3. Try using a real mobile device for testing');
+          sendLogToBackend('BlueStacks troubleshooting info provided');
+        }
         return;
       }
 

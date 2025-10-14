@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "name": "sweatbot-frontend",
+  "framework": "vite",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://setting-indicators-pollution-justify.trycloudflare.com/api/:path*"
+    },
+    {
+      "source": "/ws",
+      "destination": "https://setting-indicators-pollution-justify.trycloudflare.com/ws"
+    },
+    {
+      "source": "/health/:path*",
+      "destination": "https://setting-indicators-pollution-justify.trycloudflare.com/health/:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://setting-indicators-pollution-justify.trycloudflare.com/auth/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

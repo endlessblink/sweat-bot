@@ -20,7 +20,8 @@ export default defineConfig({
       '127.0.0.1',
       'sweat-bot.com',
       'api.sweat-bot.com',
-      '.sweat-bot.com' // Allow all subdomains
+      '.sweat-bot.com', // Allow all subdomains
+      '.trycloudflare.com' // Allow all Cloudflare tunnel domains
     ],
     headers: {
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',

@@ -394,8 +394,9 @@ async def create_guest_user(
                     detail="Email already in use by non-guest account"
                 )
         else:
-            # Create new guest with device ID
-            guest_username = f"guest_{device_id[:8]}"
+            # Create new guest with device ID + random suffix to prevent collisions
+            random_suffix = secrets.token_hex(4)  # 8 random characters
+            guest_username = f"guest_{device_id[:8]}_{random_suffix}"
             logger.info(f"[AUTH] Creating new guest user: {guest_username} (device_id: {device_id[:8]})")
 
             guest_user = User(

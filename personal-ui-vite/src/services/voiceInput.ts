@@ -460,10 +460,31 @@ export class AudioRecorder {
       // MOBILE-SPECIFIC: Request microphone access with mobile constraints
       const isMobile = /Mobile|Android|iPhone/.test(navigator.userAgent);
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isBlueStacks = navigator.userAgent.includes('BlueStacks') ||
+                           navigator.userAgent.includes('SDK') ||
+                           window.location.hostname.includes('localhost');
 
-      // Mobile-specific audio constraints
+      console.log(`[AudioRecorder] Device detection: Mobile=${isMobile}, iOS=${isIOS}, BlueStacks=${isBlueStacks}`);
+
+      // BLUESTACKS-SPECIFIC: Special handling for BlueStacks emulator
+      if (isBlueStacks) {
+        console.warn('[AudioRecorder] ⚠️ BlueStacks detected - microphone access may not work');
+        console.log('[AudioRecorder] 💡 BlueStacks troubleshooting:');
+        console.log('   1. Open BlueStacks Settings > Preferences');
+        console.log('   2. Enable "Microphone" under Android settings');
+        console.log('   3. Check Windows microphone permissions');
+        console.log('   4. Consider testing on real mobile device');
+      }
+
+      // Mobile-specific audio constraints with BlueStacks fallback
       const mobileConstraints = {
-        audio: isIOS ? {
+        audio: isBlueStacks ? {
+          // BLUESTACKS: Use minimal constraints for emulator compatibility
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          sampleRate: 16000,
+        } : isIOS ? {
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false,
@@ -476,10 +497,18 @@ export class AudioRecorder {
         }
       };
 
-      console.log(`[AudioRecorder] Using ${isIOS ? 'iOS' : (isMobile ? 'mobile' : 'desktop')} audio constraints`);
+      console.log(`[AudioRecorder] Using ${isBlueStacks ? 'BlueStacks' : (isIOS ? 'iOS' : (isMobile ? 'mobile' : 'desktop'))} audio constraints`);
 
       // Request microphone access with mobile-optimized constraints
-      this.stream = await navigator.mediaDevices.getUserMedia(mobileConstraints);
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia(mobileConstraints);
+      } catch (blueStacksError) {
+        if (isBlueStacks) {
+          console.error('[AudioRecorder] ❌ BlueStacks microphone access failed:', blueStacksError);
+          throw new Error(`BlueStacks microphone access failed. Please enable microphone in BlueStacks Settings > Preferences > Android Settings > Microphone`);
+        }
+        throw blueStacksError;
+      }
 
       // MOBILE-SPECIFIC: Force stream to be active on mobile
       if (isMobile) {
