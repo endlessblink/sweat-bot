@@ -4,6 +4,8 @@ Claude Code development guidelines for the SweatBot project.
 
 ## 🚨 CRITICAL DEVELOPMENT RULES
 
+ALWAYS USE permanent clouldflare tunnel 
+
 ### 1. Task Management
 **ALWAYS CREATE AND UPDATE LIKE I SAID TASKS BEFORE DOING ANYTHING** - Track all work items.
 

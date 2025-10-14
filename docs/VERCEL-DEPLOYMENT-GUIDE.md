@@ -15,17 +15,28 @@ Recording ✅          HTTPS ✅              Database ✅
 
 ### 1. Vercel Configuration (`vercel.json`)
 - Configures build settings for Vite + React
-- Sets up API rewrites to proxy backend calls to localhost:8000
+- Sets up API rewrites to proxy backend calls to Cloudflare tunnel
 - Handles SPA routing
-- Defines environment variables
+- **NEW**: Added comprehensive CORS headers for cross-origin requests
+- **NEW**: Enhanced WebSocket routing support
 
 ### 2. Production Environment (`.env.production`)
 - Empty VITE_API_URL and VITE_BACKEND_URL (will be set via Vercel env vars)
 - Maintains same STT configuration as development
 
 ### 3. Backend CORS Update (`backend/app/core/config.py`)
-- Added `https://sweat-bot.vercel.app` to allowed origins
-- Enables cross-origin requests from Vercel to local backend
+- Added `https://sweat-bot.com` to allowed origins
+- Enables cross-origin requests from production domain
+
+### 4. **NEW: Doppler Integration for API Keys**
+- Added `VITE_GROQ_API_KEY` and `VITE_OPENAI_API_KEY` to Doppler
+- API keys are now baked into production build
+- Resolves "VITE_GROQ_API_KEY not found" errors
+
+### 5. **NEW: Build Process Updates**
+- Frontend must be built with `doppler run -- npm run build`
+- Ensures environment variables are included in production bundle
+- Fixed dynamic import issues with new chunk hashes
 
 ## Deployment Steps
 
@@ -44,13 +55,18 @@ npm install -g vercel
 vercel login
 ```
 
-### Step 3: Deploy Frontend
+### Step 3: Build Frontend with API Keys
 ```bash
-cd /mnt/d/MY\ PROJECTS/AI/LLM/AI\ Code\ Gen/my-builds/Automation-Bots/sweatbot/personal-ui-vite
+cd "/mnt/d/MY PROJECTS/AI/LLM/AI Code Gen/my-builds/Automation-Bots/sweatbot/personal-ui-vite"
+doppler run -- npm run build
+```
+
+### Step 4: Deploy Frontend
+```bash
 vercel --prod
 ```
 
-### Step 4: Configure Environment Variables in Vercel
+### Step 5: Configure Environment Variables in Vercel
 1. Go to your Vercel dashboard
 2. Select your project
 3. Go to Settings → Environment Variables
@@ -60,7 +76,7 @@ vercel --prod
    VITE_BACKEND_URL=https://sweat-bot.vercel.app
    ```
 
-### Step 5: Test the Deployment
+### Step 6: Test the Deployment
 1. Open `https://sweat-bot.vercel.app` in your browser
 2. Test on mobile device:
    - Microphone permission should work (HTTPS requirement solved)
