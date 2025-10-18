@@ -32,19 +32,19 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://pda-shanghai-midlands-underwear.trycloudflare.com/api/:path*"
+      "destination": "https://sweatbot-api.onrender.com/api/:path*"
     },
     {
       "source": "/ws",
-      "destination": "https://pda-shanghai-midlands-underwear.trycloudflare.com/ws"
+      "destination": "wss://sweatbot-api.onrender.com/ws"
     },
     {
       "source": "/health/:path*",
-      "destination": "https://pda-shanghai-midlands-underwear.trycloudflare.com/health/:path*"
+      "destination": "https://sweatbot-api.onrender.com/health/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://pda-shanghai-midlands-underwear.trycloudflare.com/auth/:path*"
+      "destination": "https://sweatbot-api.onrender.com/auth/:path*"
     },
     {
       "source": "/(.*)",
