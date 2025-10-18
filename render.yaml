@@ -3,6 +3,7 @@ services:
   - type: web
     name: sweat-bot
     env: python
+    runtime: python
     plan: free
     buildCommand: "pip install setuptools wheel && pip install -r backend/requirements.txt && pip install doppler-cli"
     startCommand: "doppler run -- python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"
