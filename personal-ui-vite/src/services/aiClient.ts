@@ -68,7 +68,15 @@ class AIClient {
       console.log('[AI CLIENT] Token exists:', !!token);
       console.log('[AI CLIENT] User Agent:', navigator.userAgent);
 
-      const response = await fetch(`${baseUrl}/api/v1/ai/chat`, {
+      // Transform the AI client request format to match chat/message endpoint
+      const chatMessage = {
+        message: request.messages[request.messages.length - 1]?.content || '', // Get the last user message
+        model: 'bjoernb/gemma3n-e2b:latest', // Use the working Ollama model
+        context: {},
+        session_id: `frontend_${Date.now()}`
+      };
+
+      const response = await fetch(`${baseUrl}/chat/message`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -76,7 +84,7 @@ class AIClient {
           'Accept': 'application/json'
         },
         mode: 'cors',
-        body: JSON.stringify(request)
+        body: JSON.stringify(chatMessage)
       });
 
       console.log('[AI CLIENT] Response status:', response.status);
@@ -95,11 +103,25 @@ class AIClient {
         throw new Error(error.detail || 'AI service error');
       }
 
-      const data: ChatResponse = await response.json();
-      console.log(`✅ AI response from ${data.provider}/${data.model} - ${data.usage.total_tokens} tokens`);
+      const data = await response.json();
       console.log('[AI CLIENT] Success - response received');
 
-      return data;
+      // Transform the chat/message response to match the expected ChatResponse format
+      const transformedResponse: ChatResponse = {
+        content: data.response,
+        model: data.model_used || 'bjoernb/gemma3n-e2b:latest',
+        provider: 'ollama',
+        tool_calls: [],
+        usage: {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0
+        },
+        finish_reason: 'stop'
+      };
+
+      console.log(`✅ AI response from ${transformedResponse.provider}/${transformedResponse.model}`);
+      return transformedResponse;
     } catch (error) {
       if (error instanceof RateLimitException) {
         throw error;  // Re-throw rate limit errors

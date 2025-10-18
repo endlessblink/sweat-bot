@@ -5,7 +5,7 @@ python-multipart==0.0.6
 
 # Database
 sqlalchemy[asyncio]==2.0.23
-asyncpg>=0.30.0
+asyncpg==0.29.0
 psycopg2-binary==2.9.9
 alembic==1.12.1
 
@@ -26,8 +26,8 @@ cryptography
 
 # Configuration
 python-dotenv==1.0.0
-pydantic[email]>=2.8.0
-pydantic-settings>=2.4.0
+pydantic[email]==2.5.2
+pydantic-settings==2.1.0
 email-validator==2.1.0
 
 # AI Agents
@@ -38,12 +38,12 @@ google-generativeai
 anthropic
 
 # Scientific computing (for voice processing)
-numpy>=1.26.0
-scipy>=1.13.0
+numpy==1.24.3
+scipy==1.11.4
 
 # Audio processing (optional)
-torch>=2.4.0
-torchaudio>=2.4.0
+torch==2.1.1
+torchaudio==2.1.1
 librosa==0.10.1
 soundfile==0.12.1
 pydub==0.25.1

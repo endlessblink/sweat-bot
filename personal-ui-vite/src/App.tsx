@@ -6,7 +6,7 @@ import { Profile } from './pages/Profile';
 import PointsManagementPage from './pages/PointsManagementPage';
 import AudioTest from './pages/AudioTest';
 // Initialize mobile debugger for console log interception
-import './utils/mobileDebugger';
+// import './utils/mobileDebugger'; // Disabled for clean UI testing
 
 /**
  * SweatBot App - Vite Version with Volt Agent

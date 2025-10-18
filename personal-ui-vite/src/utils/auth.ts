@@ -20,13 +20,28 @@ const TOKEN_KEY = 'sweatbot_auth_token';
 const USER_KEY = 'sweatbot_user';
 const DEVICE_ID_KEY = 'sweatbot_device_id';
 
+// Fallback UUID generator for browsers without crypto.randomUUID
+function generateUUID(): string {
+  // Use crypto.randomUUID if available (modern browsers)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  // Fallback implementation for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // Generate stable device ID for guest users
 function getOrCreateDeviceId(): string {
   let deviceId = localStorage.getItem(DEVICE_ID_KEY);
 
   if (!deviceId) {
     // Generate new device ID (UUID v4)
-    deviceId = 'dev_' + crypto.randomUUID();
+    deviceId = 'dev_' + generateUUID();
     localStorage.setItem(DEVICE_ID_KEY, deviceId);
     console.log('🆔 Generated new device ID:', deviceId);
   }

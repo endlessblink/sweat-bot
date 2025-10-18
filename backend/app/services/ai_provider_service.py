@@ -22,27 +22,37 @@ class AIProviderService:
         self.groq_client = None
         self.gemini_model = None
 
+        # Debug: Check what environment variables are available
+        logger.info("🔍 DEBUG: Checking AI API keys...")
+        openai_key = os.getenv("OPENAI_API_KEY")
+        groq_key = os.getenv("GROQ_API_KEY")
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        logger.info(f"🔑 OpenAI key exists: {bool(openai_key)}")
+        logger.info(f"🔑 Groq key exists: {bool(groq_key)}")
+        logger.info(f"🔑 Gemini key exists: {bool(gemini_key)}")
+
         # Load OpenAI
-        if os.getenv("OPENAI_API_KEY"):
+        if openai_key:
             try:
-                self.openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                self.openai_client = AsyncOpenAI(api_key=openai_key)
                 logger.info("✅ OpenAI provider initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize OpenAI: {e}")
 
         # Load Groq
-        if os.getenv("GROQ_API_KEY"):
+        if groq_key:
             try:
-                self.groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
+                self.groq_client = AsyncGroq(api_key=groq_key)
                 logger.info("✅ Groq provider initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize Groq: {e}")
 
         # Load Gemini
-        if os.getenv("GEMINI_API_KEY"):
+        if gemini_key:
             try:
-                genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-                self.gemini_model = genai.GenerativeModel('gemini-1.5-pro-latest')
+                genai.configure(api_key=gemini_key)
+                # Use gemini-1.5-pro which should be available in v1beta API
+                self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')
                 logger.info("✅ Gemini provider initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini: {e}")
@@ -270,7 +280,7 @@ class AIProviderService:
 
         return {
             "content": response.text,
-            "model": "gemini-1.5-pro",
+            "model": "gemini-pro",
             "provider": "gemini",
             "tool_calls": None,  # Gemini tool calling not implemented yet
             "usage": {
