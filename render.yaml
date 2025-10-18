@@ -1,4 +1,4 @@
-# Trigger redeploy after adding Doppler service token - v2
+# Trigger redeploy after fixing path configuration - v3
 services:
   - type: web
     name: sweat-bot
