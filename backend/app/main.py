@@ -153,6 +153,32 @@ async def health_check():
             }
         )
 
+@app.get("/debug/env")
+async def debug_environment():
+    """Debug endpoint to check environment variables without database connections"""
+    import os
+
+    # Check for critical API keys (show only existence, not values for security)
+    api_keys = {
+        "OPENAI_API_KEY": bool(os.getenv("OPENAI_API_KEY")),
+        "GROQ_API_KEY": bool(os.getenv("GROQ_API_KEY")),
+        "GEMINI_API_KEY": bool(os.getenv("GEMINI_API_KEY")),
+        "ANTHROPIC_API_KEY": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "DOPPLER_PROJECT": os.getenv("DOPPLER_PROJECT"),
+        "DOPPLER_CONFIG": os.getenv("DOPPLER_CONFIG"),
+        "DATABASE_URL": bool(os.getenv("DATABASE_URL")),
+        "MONGODB_URL": bool(os.getenv("MONGODB_URL")),
+        "REDIS_URL": bool(os.getenv("REDIS_URL"))
+    }
+
+    return {
+        "status": "debug",
+        "environment": os.environ.get("ENVIRONMENT", "development"),
+        "api_keys_loaded": api_keys,
+        "all_env_vars_count": len(os.environ),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
 @app.get("/health/detailed")
 async def detailed_health_check():
     """Detailed health check with component status"""
