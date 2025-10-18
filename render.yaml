@@ -3,14 +3,24 @@ services:
     name: sweatbot-api
     env: python
     plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "uvicorn backend.app.simple_main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: 3.11
-      - key: PORT
-        value: 8000
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        value: "03ba50434a841f1bfa8056a6d77bdf91387dd8a0de303a3495d74a61013926f0"
+      - key: DATABASE_URL
+        value: "postgresql+asyncpg://fitness_user:L8t4gQUizFjkj8TD1BIoEIs1wAUuWAnz@dpg-d3nat86uk2gs73860c2g-a.frankfurt-postgres.render.com/hebrew_fitness"
+      - key: REDIS_URL
+        value: "redis://default:AWAxAAIncDJmM2FjNTZkNTY3Yzk0ZTU5YWMzYTY4OTE3ODUwM2QwYXAyMjQ2MjU@full-earwig-24625.upstash.io:6379"
+      - key: GEMINI_API_KEY
+        value: "AIzaSyDCi5mgAxIN-NCNtQnJC2oQ_6iTCvGlGIo"
+      - key: GROQ_API_KEY
+        value: "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"
 
 databases:
   - name: sweatbot-db
