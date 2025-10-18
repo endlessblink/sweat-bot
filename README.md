@@ -67,9 +67,32 @@ npm run dev
 
 ## ⚙️ Configuration
 
-### Required API Keys
+### 🔐 Secret Management with Doppler
 
-Add these to your `.env` file or Docker environment:
+SweatBot uses **Doppler** for secure secret management in production and development.
+
+#### Quick Setup with Doppler (Recommended)
+
+```bash
+# 1. Install Doppler CLI
+curl -Ls https://cli.doppler.com/install.sh | sh
+
+# 2. Configure Doppler
+doppler setup --project sweatbot --config dev
+
+# 3. Add your secrets to Doppler dashboard at https://dashboard.doppler.com
+# Required secrets:
+# - OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY
+# - SECRET_KEY, JWT_SECRET_KEY
+# - DATABASE_URL, REDIS_URL
+
+# 4. Start with Doppler integration
+./start-sweatbot-doppler.sh
+```
+
+#### Local Development without Doppler
+
+Create a `.env` file (use `.env.example` as template):
 
 ```bash
 # AI Services (choose one or more)
@@ -91,6 +114,7 @@ JWT_SECRET_KEY=your-jwt-secret-here
 1. **OpenAI** - Get keys at [platform.openai.com](https://platform.openai.com/api-keys)
 2. **Gemini** - Get keys at [makersuite.google.com](https://makersuite.google.com/app/apikey)
 3. **Groq** - Get keys at [console.groq.com](https://console.groq.com/keys)
+4. **Doppler** - Create free account at [doppler.com](https://www.doppler.com)
 
 ## 🏗️ Architecture
 
