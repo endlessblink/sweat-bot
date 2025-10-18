@@ -21,10 +21,10 @@ export function getBackendUrl(): string {
     origin: window.location.origin
   });
 
-  // If accessed via public domain, use same origin
+  // If accessed via public domain, use Render backend
   if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-    const url = `${protocol}//${window.location.host}`;
-    console.log('[ENV] Using production URL:', url);
+    const url = 'https://sweatbot-api.onrender.com';
+    console.log('[ENV] Using production backend URL:', url);
     return url;
   }
 
@@ -40,10 +40,9 @@ export function getBackendUrl(): string {
  * - In development (localhost): use ws:// with configured backend
  */
 export function getWebSocketUrl(): string {
-  // If accessed via public domain, use same origin
+  // If accessed via public domain, use Render backend WebSocket
   if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}`;
+    return 'wss://sweatbot-api.onrender.com';
   }
 
   // For local development, use configured backend URL with ws protocol

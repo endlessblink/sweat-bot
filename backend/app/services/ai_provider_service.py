@@ -42,7 +42,7 @@ class AIProviderService:
         if os.getenv("GEMINI_API_KEY"):
             try:
                 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-                self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')
+                self.gemini_model = genai.GenerativeModel('gemini-1.5-pro-latest')
                 logger.info("✅ Gemini provider initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini: {e}")
