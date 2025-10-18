@@ -266,6 +266,10 @@ debug_*.py
 *_test.py
 test_report_*.json
 
+# Debug folders (all screenshots and debug images)
+docs/debug/
+docs/screenshots-debug/
+
 # Session dropoff files (keep for documentation)
 !SESSION-DROPOFF-*.md
 
