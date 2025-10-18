@@ -15,7 +15,7 @@ import os
 from app.core.database import get_db
 from app.models.models import User
 from app.api.v1.auth import get_current_user
-from app.services.hebrew_model_manager import HebrewModelManager
+from app.services.ai_provider_service import AIProviderService
 from app.services.gamification_service import GamificationService
 from app.services.exercise_integration_service import exercise_integration_service
 from app.services.user_context_manager import user_context_manager
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Initialize services
-model_manager = HebrewModelManager()
+ai_provider_service = AIProviderService()
 gamification_service = GamificationService()
 
 
@@ -120,22 +120,38 @@ async def send_chat_message(
             **(chat_input.context or {})
         }
         
-        # Try to get response from selected model
+        # Try to get response from selected model using AIProviderService
         try:
-            response_data = await model_manager.generate_chat_response(
-                message=chat_input.message,
-                model=chat_input.model,
-                context=context,
+            # Convert frontend model name to AIProviderService format
+            provider_model_map = {
+                "openai-gpt-4o-mini": "openai",
+                "gemini-1.5-pro": "gemini",
+                "gemini-1.5-flash": "gemini",
+                "llama-3.3-70b-versatile": "groq"
+            }
+
+            preferred_provider = provider_model_map.get(chat_input.model, "openai")
+
+            # Prepare messages for AIProviderService
+            messages = [
+                {"role": "system", "content": await _build_system_prompt(context)},
+                {"role": "user", "content": chat_input.message}
+            ]
+
+            response_data = await ai_provider_service.chat_completion(
+                messages=messages,
+                preferred_model=preferred_provider,
+                temperature=0.7,
                 user_id=str(current_user.id)
             )
-            
+
             if not response_data:
-                # Fallback to default model if primary fails
-                logger.warning(f"Model {chat_input.model} failed, trying fallback")
-                response_data = await model_manager.generate_chat_response(
-                    message=chat_input.message,
-                    model="openai-gpt-4o-mini",  # Fallback model
-                    context=context,
+                # Fallback to OpenAI if primary fails
+                logger.warning(f"Provider {preferred_provider} failed, trying OpenAI fallback")
+                response_data = await ai_provider_service.chat_completion(
+                    messages=messages,
+                    preferred_model="openai",
+                    temperature=0.7,
                     user_id=str(current_user.id)
                 )
             
@@ -244,17 +260,17 @@ async def send_chat_message(
             user_id=str(current_user.id),
             session_id=session_id,
             user_message=chat_input.message,
-            ai_response=response_data["response"],
-            model_used=response_data.get("model_used", chat_input.model),
+            ai_response=response_data["content"],
+            model_used=response_data.get("model", chat_input.model),
             exercise_info=exercise_info,
             db=db
         )
-        
+
         logger.info(f"Chat response generated successfully for user {current_user.username}")
-        
+
         return ChatResponse(
-            response=response_data["response"],
-            model_used=response_data.get("model_used", chat_input.model),
+            response=response_data["content"],
+            model_used=response_data.get("model", chat_input.model),
             session_id=session_id,
             confidence=response_data.get("confidence"),
             exercise_detected=exercise_info,
@@ -417,20 +433,102 @@ async def clear_chat_session(
             detail="שגיאה בניקוי הפגישה"
         )
 
+async def _build_system_prompt(context: Optional[Dict[str, Any]]) -> str:
+    """Build Hebrew-only system prompt for fitness AI"""
+
+    # Get user-specific information
+    username = ""
+    fitness_level = ""
+    user_context = context.get("user_context", {}) if context else {}
+    fitness_profile = user_context.get("fitness_profile", {})
+    recent_workouts = user_context.get("recent_workouts", [])
+    personal_records = user_context.get("personal_records", [])
+
+    if context:
+        username = context.get("username", "")
+        fitness_level = fitness_profile.get("fitness_level", "")
+        recent_workouts = user_context.get("recent_workouts", [])
+        personal_records = user_context.get("personal_records", [])
+
+    # Build personalized base prompt
+    base_prompt = f"""אתה SweatBot, מאמן כושר אישי מקצועיית בעברית. אתה עוזר ל{username if username else 'המשתמש'} להתקדם בכושר.
+
+🚨 חוקים קריטיים - חובה לציית:
+1. תכתוב ותדבר רק בעברית - אסור לחלוטין טקסט באנגלית
+2. אם אתה לא יודע מילה בעברית - תשתמש בביטוי עברי דומה
+3. משפטים קצרים וברורים (מקסימום 2 משפטים לתגובה)
+4. תמיד תהיה מעודד, אופטימי ותומך
+5. דבר ישירות למשתמש בגוף שני
+6. 🚨 אל תשאל שאלות מיותרות - פשוט תאשר ותעודד!
+
+התנהגות מיוחדת לתרגילים:
+⚡ כשמישהו אומר "עשיתי X תרגילים" - פשוט תעודד ותאשר (תגובה קצרה של 1-2 משפטים)
+⚡ כשמישהו מבקשים תרגילים להפסקה או אימון - תן מגוון רחב של תרגילים שונים (תגובה מפורטת מותרת)
+⚡ אל תשאל על קבוצות שרירים, קושי, או ציוד כשהמשתמש רק רוצה לתעד
+⚡ להצעות אימון - תשתמש במגוון רחב: לאנג'ים, דדליפט, פולאובר, מתח, משיכות, קפיצות, כפיפות בטן, טלטלים, ספרינטים, הליכה מהירה, שחייה, אופניים, מתיחות דינמיות, ועוד
+
+יכולות שלך:
+💪 מעקב אחרי תרגילים ואימונים
+🥗 עצות תזונה מותאמות אישית
+🎯 מוטיבציה ועידוד חכם
+📊 חישוב נקודות והשגים
+🎤 זיהוי פקודות קול בעברית
+📈 מעקב התקדמות אישית
+🏋️‍♂️ ידע נרחב במאות תרגילים שונים
+
+סגנון התגובה הנדרש:
+✓ עברית נקייה בלבד - ללא מילה באנגלית
+✓ לתיעוד תרגילים: 1-2 משפטים מקסימום עם אמוג'י אחד
+✓ להצעות אימון: תגובות מפורטות עם מגוון תרגילים מותרות ורצויות
+✓ מעודד ומעשי תמיד
+✓ ישיר וקצר לעניין (חוץ מהצעות אימון)
+✓ אל תשאל שאלות אלא אם המשתמש מבקש עזרה
+
+# לתיעוד תרגילים: תגובה קצרה ומעודדת בלבד
+# להצעות אימון: השתמש בידע הרחב שלך ותן מגוון אמיתי של תרגילים
+"""
+
+    # Add user-specific context
+    if fitness_level:
+        base_prompt += f"\n- רמת הכושר שלך: {fitness_level}"
+
+    # Current progress data
+    total_exercises = user_context.get("total_exercises", 0)
+    total_points = user_context.get("total_points", 0)
+    today_exercises = user_context.get("today_exercises", 0)
+    today_points = user_context.get("today_points", 0)
+
+    if total_exercises > 0:
+        base_prompt += f"\n- סך הכל עשית {total_exercises} תרגילים וצברת {total_points} נקודות"
+    if today_exercises > 0:
+        base_prompt += f"\n- היום עשית כבר {today_exercises} תרגילים וקיבלת {today_points} נקודות"
+
+    base_prompt += f"\n\nעכשיו תענה למשתמש בעברית נקייה בלבד, בצורה מעודדת וישירה:"
+
+    return base_prompt
+
 @router.get("/health")
 async def chat_health_check():
     """Health check for chat service"""
     try:
-        # Check model manager status
-        model_status = await model_manager.health_check()
-        
+        # Check AI provider service status
+        openai_available = ai_provider_service.is_provider_available("openai")
+        groq_available = ai_provider_service.is_provider_available("groq")
+        gemini_available = ai_provider_service.is_provider_available("gemini")
+
+        available_providers = sum([openai_available, groq_available, gemini_available])
+
         return {
-            "status": "healthy",
+            "status": "healthy" if available_providers > 0 else "unhealthy",
             "service": "chat",
-            "models": model_status,
+            "providers": {
+                "openai": openai_available,
+                "groq": groq_available,
+                "gemini": gemini_available
+            },
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
     except Exception as e:
         return {
             "status": "unhealthy",

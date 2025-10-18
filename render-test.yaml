@@ -1,0 +1,22 @@
+# Simple test deployment to verify Render auto-deploy is working
+
+services:
+  - type: web
+    name: sweat-bot
+    env: python
+    runtime: python-3.11
+    plan: free
+    buildCommand: "pip install fastapi uvicorn && echo 'Build successful'"
+    startCommand: "echo 'Application would start here' && sleep 3600"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DEBUG
+        value: "false"
+
+databases:
+  - name: sweatbot-db
+    plan: free
+    databaseName: sweatbot
+    user: sweatbot

@@ -71,7 +71,7 @@ class AIClient {
       // Transform the AI client request format to match chat/message endpoint
       const chatMessage = {
         message: request.messages[request.messages.length - 1]?.content || '', // Get the last user message
-        model: 'bjoernb/gemma3n-e2b:latest', // Use the working Ollama model
+        model: 'openai-gpt-4o-mini', // Use GPT-4o-mini for production
         context: {},
         session_id: `frontend_${Date.now()}`
       };
@@ -109,8 +109,8 @@ class AIClient {
       // Transform the chat/message response to match the expected ChatResponse format
       const transformedResponse: ChatResponse = {
         content: data.response,
-        model: data.model_used || 'bjoernb/gemma3n-e2b:latest',
-        provider: 'ollama',
+        model: data.model_used || 'openai-gpt-4o-mini',
+        provider: 'openai',
         tool_calls: [],
         usage: {
           prompt_tokens: 0,

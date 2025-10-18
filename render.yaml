@@ -1,12 +1,12 @@
-# Trigger redeploy after fixing path configuration - v3
+# Minimal deployment to break auto-deploy deadlock - v4
 services:
   - type: web
     name: sweat-bot
     env: python
     runtime: python-3.11
     plan: free
-    buildCommand: "pip install setuptools wheel && pip install -r requirements.txt && pip install doppler-cli"
-    startCommand: "doppler run -- python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    buildCommand: "pip install -r requirements-minimal-v2.txt && pip install doppler-cli"
+    startCommand: "doppler run -- python -m uvicorn app.minimal_main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
