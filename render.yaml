@@ -1,4 +1,4 @@
-# Trigger redeploy after adding Doppler service token
+# Trigger redeploy after adding Doppler service token - v2
 services:
   - type: web
     name: sweat-bot
