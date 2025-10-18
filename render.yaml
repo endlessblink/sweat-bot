@@ -3,8 +3,8 @@ services:
     name: sweat-bot
     env: python
     plan: free
-    buildCommand: "pip install -r backend/requirements.txt && pip install doppler-cli"
-    startCommand: "doppler run -- uvicorn backend.app.simple_main:app --host 0.0.0.0 --port $PORT"
+    buildCommand: "pip install setuptools wheel && pip install -r backend/requirements.txt && pip install doppler-cli"
+    startCommand: "doppler run -- python -m uvicorn backend.app.simple_main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
