@@ -5,7 +5,7 @@ services:
     env: node
     runtime: node
     plan: free
-    rootDir: backend-nodejs
+    rootDir: backend
     buildCommand: "npm install && npm run build"
     startCommand: "node dist/server-simple.js"
     healthCheckPath: /health
