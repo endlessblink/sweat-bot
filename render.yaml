@@ -1,17 +1,17 @@
-# Optimized deployment with CPU-only PyTorch and prebuilt wheels - v5
-# Based on research: reduces build time 75% and memory usage 75%
+# Node.js deployment configuration
 services:
   - type: web
     name: sweat-bot
-    env: python
-    runtime: python-3.11
+    env: node
+    runtime: node
     plan: free
-    buildCommand: "pip install --upgrade pip setuptools wheel && pip install --no-cache-dir -r requirements.txt && pip install doppler-cli"
-    startCommand: "doppler run -- python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"
+    rootDir: backend-nodejs
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
     healthCheckPath: /health
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
+      - key: NODE_ENV
+        value: production
       - key: DEBUG
         value: "false"
       - key: DOPPLER_PROJECT
@@ -20,10 +20,6 @@ services:
         value: prd
       - key: DOPPLER_SERVICE_TOKEN
         sync: false
-      - key: DATABASE_URL
-        fromDatabase:
-          name: sweatbot-db
-          property: connectionString
 
 databases:
   - name: sweatbot-db
