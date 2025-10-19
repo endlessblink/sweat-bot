@@ -1,4 +1,4 @@
-# Node.js deployment configuration
+# TypeScript Node.js deployment configuration
 services:
   - type: web
     name: sweat-bot
@@ -7,13 +7,13 @@ services:
     plan: free
     rootDir: backend-nodejs
     buildCommand: "npm install && npm run build"
-    startCommand: "npm start"
+    startCommand: "node dist/server-simple.js"
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DEBUG
-        value: "false"
+      - key: PORT
+        value: 10000
       - key: DOPPLER_PROJECT
         value: sweatbot
       - key: DOPPLER_CONFIG
