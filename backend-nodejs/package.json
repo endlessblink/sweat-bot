@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/server-simple.js",
     "dev": "nodemon src/server-simple.ts",
-    "build": "npx tsc src/server-simple.ts --outDir dist --target ES2020 --module commonjs --esModuleInterop --skipLibCheck",
+    "build": "npx tsc --outDir dist --target ES2020 --module commonjs --esModuleInterop --skipLibCheck",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
