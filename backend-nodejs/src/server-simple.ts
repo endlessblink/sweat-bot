@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { chatSimpleController } from './api/v1/chatSimple';
+import { aiProviderSimpleService } from './services/aiProviderSimple';
+import { logger } from './utils/logger';
 
 // Load environment variables
 dotenv.config();
@@ -20,21 +23,44 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    service: 'sweatbot-api',
-    version: '2.0.0',
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
-    features: {
-      authentication: '✅ Working',
-      ai_chat: '✅ Working',
-      exercise_tracking: '✅ Working',
-      databases: '🔄 Connecting...',
-      ai_providers: '🔄 Testing...'
-    }
-  });
+app.get('/health', async (req, res) => {
+  try {
+    // Check AI providers health
+    const aiHealth = await aiProviderService.healthCheck();
+
+    res.json({
+      status: 'healthy',
+      service: 'sweatbot-api',
+      version: '2.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString(),
+      features: {
+        authentication: '✅ Working',
+        ai_chat: '✅ Working',
+        exercise_tracking: '✅ Working',
+        databases: '🔄 Connecting...',
+        ai_providers: aiHealth.length > 0 ? '✅ Connected' : '❌ Not Connected',
+        ai_providers_status: aiHealth
+      }
+    });
+  } catch (error) {
+    logger.error('Health check error:', error);
+    res.json({
+      status: 'degraded',
+      service: 'sweatbot-api',
+      version: '2.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString(),
+      features: {
+        authentication: '✅ Working',
+        ai_chat: '⚠️ Error',
+        exercise_tracking: '✅ Working',
+        databases: '🔄 Connecting...',
+        ai_providers: '❌ Error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
+  }
 });
 
 // Debug environment endpoint
@@ -110,26 +136,65 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
-// Simple AI chat endpoint
-app.post('/api/v1/chat', async (req, res) => {
+// Real AI chat endpoint
+app.post('/api/v1/chat', chatController.sendMessage.bind(chatController));
+
+// AI providers health check endpoint
+app.get('/api/v1/ai/health', chatController.getProvidersHealth.bind(chatController));
+
+// Memory storage API endpoints (basic mock for now - will be enhanced with MongoDB)
+app.post('/api/memory/message', async (req, res) => {
   try {
-    const { message, provider = 'openai' } = req.body;
+    const { message, userId, sessionId, role } = req.body;
 
-    // Mock AI response - in real version would call actual AI providers
-    const mockResponse = `Hello! I am SweatBot, your fitness assistant. You said: "${message}". This is a mock response to show the system is working!`;
+    logger.info('Memory message received', {
+      userId: userId || 'anonymous',
+      sessionId,
+      role,
+      messageLength: message?.length || 0,
+    });
 
-    res.json({
+    // Mock memory storage - in real version would store to MongoDB
+    const memoryId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    res.status(201).json({
       success: true,
       data: {
-        response: mockResponse,
-        provider: provider,
-        model: 'mock-model',
-        tokens: Math.floor(Math.random() * 100) + 50,
-        responseTime: Math.floor(Math.random() * 1000) + 500
+        id: memoryId,
+        message: 'Message stored successfully',
+        timestamp: new Date().toISOString()
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    logger.error('Memory storage error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to store message'
+    });
+  }
+});
+
+// Get conversation history
+app.get('/api/memory/conversations/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Mock conversation history - in real version would fetch from MongoDB
+    res.json({
+      success: true,
+      data: {
+        conversations: [],
+        total: 0,
+        userId,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Get conversations error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve conversations'
+    });
   }
 });
 
