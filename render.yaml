@@ -1,4 +1,4 @@
-# TypeScript Node.js deployment configuration - Updated for Node.js backend
+# TypeScript Node.js deployment configuration - Force refresh to pick up Node.js config
 services:
   - type: web
     name: sweat-bot
