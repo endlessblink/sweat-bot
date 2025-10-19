@@ -1,4 +1,4 @@
-# TypeScript Node.js deployment configuration
+# TypeScript Node.js deployment configuration - Updated for Node.js backend
 services:
   - type: web
     name: sweat-bot
