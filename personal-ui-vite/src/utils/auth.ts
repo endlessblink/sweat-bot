@@ -50,16 +50,16 @@ function getOrCreateDeviceId(): string {
 }
 
 export interface AuthToken {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
+  token: string;
   user: {
     id: string;
-    username: string;
-    email: string;
+    username?: string;
+    device_id?: string;
     is_guest: boolean;
-    role?: string;
+    created_at: string;
   };
+  is_guest?: boolean;
+  created_at?: string;
 }
 
 export interface StoredUser {
@@ -86,7 +86,7 @@ export async function getOrCreateGuestToken(): Promise<string> {
 
       // Real users (non-guest) have long-lived tokens
       if (!user.is_guest) {
-        console.log('🔐 Using real user token:', user.username);
+        console.log('🔐 Using real user token:', user.username || 'real-user');
         return storedToken;
       }
 
@@ -119,17 +119,27 @@ export async function getOrCreateGuestToken(): Promise<string> {
     }
 
     const responseData = await response.json();
-    const authData: AuthToken = responseData.data;
+
+    console.log('[Auth] Raw response:', responseData);
+    console.log('[Auth] Response has token:', !!responseData.token);
+    console.log('[Auth] Response has user:', !!responseData.user);
+
+    // Direct response format (no .data wrapper)
+    const token = responseData.token;
+    const user = responseData.user;
+
+    console.log('[Auth] Extracted token:', token);
+    console.log('[Auth] Extracted user:', user);
 
     // Store token and user info
-    localStorage.setItem(TOKEN_KEY, authData.access_token);
+    localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify({
-      ...authData.user,
+      ...user,
       created_at: Date.now()
     }));
 
-    console.log('✅ New guest token created:', authData.user.username);
-    return authData.access_token;
+    console.log('✅ New guest token created:', user.username);
+    return token;
 
   } catch (error) {
     console.error('Failed to get guest token:', error);

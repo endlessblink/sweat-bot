@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
 import { logger } from './utils/logger';
 
 // Load environment variables
@@ -352,16 +354,200 @@ app.use('*', (req, res) => {
   });
 });
 
-// Start server
-const PORT = process.env.PORT || 8000;
+// WebSocket connection storage
+const connectedClients = new Map<string, WebSocket>();
 
-app.listen(PORT, () => {
-  console.log(`🚀 SweatBot API v2.0.0 (Node.js) started successfully!`);
-  console.log(`📍 Server running on port ${PORT}`);
+// JWT token validation for WebSocket connections
+function validateWebSocketToken(token: string): { userId: string; valid: boolean } {
+  try {
+    // Mock validation for guest tokens (in production, use proper JWT verification)
+    if (token && token.startsWith('guest-token-')) {
+      return {
+        userId: 'guest-' + Math.random().toString(36).substr(2, 9),
+        valid: true
+      };
+    }
+
+    // Mock validation for user tokens
+    if (token && token.startsWith('mock-jwt-token-')) {
+      return {
+        userId: 'user-' + Math.random().toString(36).substr(2, 9),
+        valid: true
+      };
+    }
+
+    return { userId: '', valid: false };
+  } catch (error) {
+    logger.error('WebSocket token validation error:', error);
+    return { userId: '', valid: false };
+  }
+}
+
+// Broadcast message to all connected clients
+function broadcastToClients(message: any, excludeUserId?: string) {
+  connectedClients.forEach((ws, userId) => {
+    if (excludeUserId && userId === excludeUserId) return;
+
+    if (ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify(message));
+      } catch (error) {
+        logger.error('Failed to send message to client:', error);
+      }
+    }
+  });
+}
+
+// Start server with WebSocket support
+const PORT = process.env.PORT || 8000;
+const server = createServer(app);
+
+// Create WebSocket server
+const wss = new WebSocketServer({
+  server,
+  path: '/ws' // WebSocket endpoint path
+});
+
+// WebSocket connection handling
+wss.on('connection', (ws: WebSocket, req) => {
+  try {
+    // Extract token from query parameters
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const token = url.searchParams.get('token') || '';
+
+    // Validate token
+    const { userId, valid } = validateWebSocketToken(token);
+
+    if (!valid || !userId) {
+      logger.warn('WebSocket connection rejected: invalid token', { token: token.substring(0, 20) + '...' });
+      ws.close(1008, 'Invalid authentication token');
+      return;
+    }
+
+    // Store client connection
+    connectedClients.set(userId, ws);
+
+    logger.info('WebSocket client connected', {
+      userId,
+      clientCount: connectedClients.size,
+      userAgent: req.headers['user-agent']
+    });
+
+    // Send welcome message
+    const welcomeMessage = {
+      type: 'connection_established',
+      data: {
+        userId,
+        message: 'WebSocket connection established successfully',
+        timestamp: new Date().toISOString(),
+        connectedClients: connectedClients.size
+      }
+    };
+
+    ws.send(JSON.stringify(welcomeMessage));
+
+    // Handle incoming messages
+    ws.on('message', (data: Buffer) => {
+      try {
+        const message = JSON.parse(data.toString());
+
+        logger.info('WebSocket message received', {
+          userId,
+          messageType: message.type,
+          messageSize: data.length
+        });
+
+        // Handle different message types
+        switch (message.type) {
+          case 'ping':
+            ws.send(JSON.stringify({
+              type: 'pong',
+              data: { timestamp: new Date().toISOString() }
+            }));
+            break;
+
+          case 'chat_message':
+            // Broadcast chat message to all clients
+            broadcastToClients({
+              type: 'chat_broadcast',
+              data: {
+                userId,
+                message: message.data.message,
+                timestamp: new Date().toISOString()
+              }
+            });
+            break;
+
+          case 'typing':
+            // Broadcast typing indicator
+            broadcastToClients({
+              type: 'user_typing',
+              data: {
+                userId,
+                isTyping: message.data.isTyping
+              }
+            }, userId); // Don't send back to sender
+            break;
+
+          default:
+            logger.warn('Unknown WebSocket message type', { userId, messageType: message.type });
+        }
+
+      } catch (error) {
+        logger.error('Failed to process WebSocket message:', error);
+        ws.send(JSON.stringify({
+          type: 'error',
+          data: { message: 'Invalid message format' }
+        }));
+      }
+    });
+
+    // Handle connection close
+    ws.on('close', (code: number, reason: Buffer) => {
+      connectedClients.delete(userId);
+      logger.info('WebSocket client disconnected', {
+        userId,
+        code,
+        reason: reason.toString(),
+        clientCount: connectedClients.size
+      });
+
+      // Notify other clients about disconnection
+      broadcastToClients({
+        type: 'user_disconnected',
+        data: {
+          userId,
+          timestamp: new Date().toISOString()
+        }
+      });
+    });
+
+    // Handle connection errors
+    ws.on('error', (error: Error) => {
+      logger.error('WebSocket connection error:', error);
+      connectedClients.delete(userId);
+    });
+
+  } catch (error) {
+    logger.error('WebSocket connection setup error:', error);
+    ws.close(1011, 'Internal server error');
+  }
+});
+
+// Handle WebSocket server errors
+wss.on('error', (error: Error) => {
+  logger.error('WebSocket server error:', error);
+});
+
+// Start the server
+server.listen(PORT, () => {
+  console.log(`🚀 SweatBot API v2.0.0 (Node.js + WebSocket) started successfully!`);
+  console.log(`📍 HTTP Server running on port ${PORT}`);
+  console.log(`🔌 WebSocket Server running on ws://localhost:${PORT}/ws`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔧 Debug endpoint: http://localhost:${PORT}/debug/env`);
-  console.log(`✅ Ready for deployment to Render!`);
+  console.log(`✅ Ready for deployment to Render with WebSocket support!`);
 });
 
 export default app;
