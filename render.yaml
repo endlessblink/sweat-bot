@@ -1,4 +1,4 @@
-# TypeScript Node.js deployment configuration - Force Node.js deployment (v2)
+# TypeScript Node.js deployment configuration - Force Node.js deployment (v3)
 services:
   - type: web
     name: sweat-bot
