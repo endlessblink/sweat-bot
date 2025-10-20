@@ -1,7 +1,7 @@
 # TypeScript Node.js deployment configuration - FINAL Node.js Config (v6)
 services:
   - type: web
-    name: sweatbot-api
+    name: sweat-bot
     env: node
     runtime: node
     plan: free
