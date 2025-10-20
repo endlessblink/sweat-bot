@@ -1,0 +1,32 @@
+# TypeScript Node.js deployment configuration - FORCE NODE JS READ (v5 - Major Change)
+services:
+  - type: web
+    name: sweat-bot
+    env: node
+    runtime: node
+    plan: free
+    rootDir: backend-nodejs
+    buildCommand: "npm ci --production=false && npm run build && echo 'Node.js build completed successfully'"
+    startCommand: "node dist/server-simple.js"
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DOPPLER_PROJECT
+        value: sweatbot
+      - key: DOPPLER_CONFIG
+        value: prd
+      - key: DOPPLER_SERVICE_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sweatbot-db
+          property: connectionString
+
+databases:
+  - name: sweatbot-db
+    plan: free
+    databaseName: sweatbot
+    user: sweatbot
