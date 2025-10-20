@@ -1,4 +1,4 @@
-# TypeScript Node.js deployment configuration - Force refresh to pick up Node.js config
+# TypeScript Node.js deployment configuration - Force Node.js deployment (v2)
 services:
   - type: web
     name: sweat-bot
