@@ -6,7 +6,7 @@ services:
     runtime: node
     plan: free
     rootDir: backend-nodejs
-    buildCommand: "npm ci --production=false && npm run build && echo 'Final Node.js build completed'"
+    buildCommand: "npm install && npm run build && echo 'Node.js build completed successfully'"
     startCommand: "node dist/server-simple.js"
     healthCheckPath: /health
     envVars:
