@@ -16,7 +16,7 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? ['https://sweat-bot.onrender.com']
-    : ['http://localhost:8005', 'http://localhost:3000'],
+    : ['http://localhost:8005', 'http://localhost:8007', 'http://localhost:3000'],
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
