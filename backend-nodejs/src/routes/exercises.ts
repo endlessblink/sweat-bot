@@ -207,11 +207,11 @@ router.get('/leaderboard',
  */
 router.post('/bulk',
   authenticateToken,
-  validateBody({
+  validateBody(Joi.object({
     exercises: Joi.array().items(schemas.exerciseLog).min(1).max(20).required(),
     workoutNotes: Joi.string().max(1000).optional(),
     workoutType: Joi.string().valid('strength', 'cardio', 'flexibility', 'sports').default('strength')
-  }),
+  })),
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const userId = req.user!.userId;
     const { exercises, workoutNotes, workoutType } = req.body;

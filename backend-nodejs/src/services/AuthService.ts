@@ -264,11 +264,12 @@ export class AuthService {
    * Generate JWT token
    */
   private generateToken(payload: JWTPayload): string {
-    return jwt.sign(payload, config.JWT_SECRET, {
-      expiresIn: config.JWT_EXPIRES_IN,
+    const options: jwt.SignOptions = {
+      expiresIn: (config.JWT_EXPIRES_IN || '7d') as any,
       issuer: 'sweatbot-api',
       audience: 'sweatbot-client'
-    });
+    };
+    return jwt.sign(payload, config.JWT_SECRET as string, options);
   }
 
   /**

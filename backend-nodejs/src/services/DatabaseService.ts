@@ -78,6 +78,9 @@ export class DatabaseService {
   public mongo: Db;
   public redis: RedisClientType;
 
+  // MongoDB client for disconnection
+  private mongoClient: MongoClient;
+
   // MongoDB collections
   private conversations: Collection<Conversation>;
   private points: Collection<PointsRecord>;
@@ -88,8 +91,8 @@ export class DatabaseService {
     this.postgres = new Pool(postgresConfig);
 
     // MongoDB
-    const mongoClient = new MongoClient(config.MONGODB_URL, mongoConfig);
-    this.mongo = mongoClient.db('sweatbot');
+    this.mongoClient = new MongoClient(config.MONGODB_URL, mongoConfig);
+    this.mongo = this.mongoClient.db('sweatbot');
 
     // Redis
     this.redis = createClient(redisConfig);
@@ -161,7 +164,7 @@ export class DatabaseService {
   async disconnect(): Promise<void> {
     try {
       await this.postgres.end();
-      await this.mongo.close();
+      await this.mongoClient.close();
       await this.redis.disconnect();
       logger.info('🔌 All databases disconnected successfully');
     } catch (error) {

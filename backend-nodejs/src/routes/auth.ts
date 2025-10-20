@@ -65,10 +65,7 @@ router.get('/me', authenticateToken, asyncHandler(async (req: AuthenticatedReque
  */
 router.put('/change-password',
   authenticateToken,
-  validateBody({
-    currentPassword: schemas.login.extract('password'),
-    newPassword: schemas.register.extract('password')
-  }),
+  validateBody(schemas.changePassword),
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const { currentPassword, newPassword } = req.body;
 
@@ -87,9 +84,7 @@ router.put('/change-password',
  * @access  Public
  */
 router.post('/forgot-password',
-  validateBody({
-    email: schemas.register.extract('email')
-  }),
+  validateBody(schemas.forgotPassword),
   asyncHandler(async (req, res) => {
     const { email } = req.body;
 
@@ -117,18 +112,7 @@ router.post('/forgot-password',
  * @access  Public
  */
 router.post('/reset-password',
-  validateBody({
-    token: express.Router().use((req, res, next) => {
-      if (!req.body.token || typeof req.body.token !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'Reset token is required'
-        });
-      }
-      next();
-    }),
-    newPassword: schemas.register.extract('password')
-  }),
+  validateBody(schemas.resetPassword),
   asyncHandler(async (req, res) => {
     const { token, newPassword } = req.body;
 
@@ -147,17 +131,7 @@ router.post('/reset-password',
  * @access  Public
  */
 router.post('/refresh-token',
-  validateBody({
-    refreshToken: express.Router().use((req, res, next) => {
-      if (!req.body.refreshToken || typeof req.body.refreshToken !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'Refresh token is required'
-        });
-      }
-      next();
-    })
-  }),
+  validateBody(schemas.refreshToken),
   asyncHandler(async (req, res) => {
     const { refreshToken } = req.body;
 

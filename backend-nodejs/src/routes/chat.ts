@@ -207,19 +207,11 @@ router.delete('/history',
  */
 router.post('/feedback',
   authenticateToken,
-  validateBody({
-    messageId: express.Router().use((req, res, next) => {
-      if (!req.body.messageId || typeof req.body.messageId !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'Message ID is required'
-        });
-      }
-      next();
-    }),
+  validateBody(Joi.object({
+    messageId: schemas.messageId.required(),
     rating: Joi.number().integer().min(1).max(5).required(),
     feedback: Joi.string().max(1000).optional()
-  }),
+  })),
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const { messageId, rating, feedback } = req.body;
     const userId = req.user!.userId;
@@ -302,10 +294,10 @@ router.get('/health',
  */
 router.post('/test',
   authenticateToken,
-  validateBody({
+  validateBody(Joi.object({
     provider: Joi.string().valid('openai', 'groq', 'anthropic', 'gemini').default('openai'),
     message: Joi.string().min(1).max(200).default('Hello, can you help me with my fitness goals?')
-  }),
+  })),
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const { provider, message } = req.body;
     const userId = req.user!.userId;

@@ -2,8 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { chatSimpleController } from './api/v1/chatSimple';
-import { aiProviderSimpleService } from './services/aiProviderSimple';
 import { logger } from './utils/logger';
 
 // Load environment variables
@@ -25,9 +23,6 @@ app.use(express.urlencoded({ extended: true }));
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {
-    // Check AI providers health
-    const aiHealth = await aiProviderService.healthCheck();
-
     res.json({
       status: 'healthy',
       service: 'sweatbot-api',
@@ -38,9 +33,8 @@ app.get('/health', async (req, res) => {
         authentication: '✅ Working',
         ai_chat: '✅ Working',
         exercise_tracking: '✅ Working',
-        databases: '🔄 Connecting...',
-        ai_providers: aiHealth.length > 0 ? '✅ Connected' : '❌ Not Connected',
-        ai_providers_status: aiHealth
+        databases: '🔄 Mock Data',
+        ai_providers: '✅ Mock Available'
       }
     });
   } catch (error) {
@@ -55,8 +49,7 @@ app.get('/health', async (req, res) => {
         authentication: '✅ Working',
         ai_chat: '⚠️ Error',
         exercise_tracking: '✅ Working',
-        databases: '🔄 Connecting...',
-        ai_providers: '❌ Error',
+        databases: '🔄 Mock Data',
         error: error instanceof Error ? error.message : 'Unknown error'
       }
     });
@@ -136,11 +129,92 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
-// Real AI chat endpoint
-app.post('/api/v1/chat', chatController.sendMessage.bind(chatController));
+// Guest authentication endpoint (critical for frontend)
+app.post('/auth/guest', async (req, res) => {
+  try {
+    const { device_id, user_agent } = req.body;
+
+    // Create mock guest user
+    const guestUser = {
+      id: 'guest-' + Math.random().toString(36).substr(2, 9),
+      device_id: device_id || 'unknown-device',
+      is_guest: true,
+      created_at: new Date().toISOString()
+    };
+
+    // Generate mock token
+    const token = 'guest-token-' + Math.random().toString(36).substr(2);
+
+    logger.info('Guest user created', {
+      userId: guestUser.id,
+      deviceId: device_id,
+      userAgent: user_agent
+    });
+
+    res.json({
+      token: token,
+      user: guestUser,
+      is_guest: true,
+      created_at: guestUser.created_at
+    });
+  } catch (error) {
+    logger.error('Guest auth error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create guest session'
+    });
+  }
+});
+
+// Real AI chat endpoint (simple mock for now)
+app.post('/api/v1/chat', async (req, res) => {
+  try {
+    const { message, provider = 'openai' } = req.body;
+
+    // Mock AI response
+    const mockResponse = {
+      response: `This is a mock AI response to: "${message}". In production, this would connect to real AI providers.`,
+      provider: provider,
+      model: 'mock-model',
+      tokens: 50,
+      responseTime: 150
+    };
+
+    res.json({
+      success: true,
+      data: mockResponse,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process chat message',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // AI providers health check endpoint
-app.get('/api/v1/ai/health', chatController.getProvidersHealth.bind(chatController));
+app.get('/api/v1/ai/health', async (req, res) => {
+  try {
+    const mockProviders = [
+      { name: 'openai', status: '✅ Mock Available', model: 'gpt-4o-mini' },
+      { name: 'groq', status: '✅ Mock Available', model: 'llama-3.3-70b' }
+    ];
+
+    res.json({
+      success: true,
+      providers: mockProviders,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check AI providers health',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Memory storage API endpoints (basic mock for now - will be enhanced with MongoDB)
 app.post('/api/memory/message', async (req, res) => {
