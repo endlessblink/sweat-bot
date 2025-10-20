@@ -62,11 +62,14 @@ class AIClient {
       const token = await getOrCreateGuestToken();
       const baseUrl = this.getBaseUrl();
 
-      // Debug logging for mobile troubleshooting
+      // Debug logging for mobile troubleshooting - V2 CACHE CLEAR
+      console.log('=== V2 CACHE CLEAR - aiClient.ts RELOADED ===');
       console.log('[AI CLIENT] Starting chat request');
       console.log('[AI CLIENT] Base URL:', baseUrl);
       console.log('[AI CLIENT] Token exists:', !!token);
       console.log('[AI CLIENT] User Agent:', navigator.userAgent);
+      console.log('[AI CLIENT] Request messages count:', request.messages?.length || 0);
+      console.log('[AI CLIENT] Last message:', request.messages?.[request.messages.length - 1]?.content || 'No messages');
 
       // Transform the AI client request format to match chat/message endpoint
       const chatMessage = {

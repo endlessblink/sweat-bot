@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { logger } from './utils/logger';
+import { chatRoutes } from './routes/chat';
+import { config } from './config/environment';
 
 // Load environment variables
 dotenv.config();
@@ -41,6 +43,16 @@ app.use(express.urlencoded({ extended: true }));
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {
+    // Import AIService dynamically to check real provider status
+    const { AIService } = await import('./services/AIService');
+    const aiService = new AIService();
+    const providerStatus = aiService.getProviderStatus();
+
+    // Check which providers are actually available with API keys
+    const availableProviders = Object.entries(providerStatus)
+      .filter(([_, status]) => status.available)
+      .map(([name, _]) => name);
+
     res.json({
       status: 'healthy',
       service: 'sweatbot-api',
@@ -49,10 +61,10 @@ app.get('/health', async (req, res) => {
       timestamp: new Date().toISOString(),
       features: {
         authentication: '✅ Working',
-        ai_chat: '✅ Working',
+        ai_chat: availableProviders.length > 0 ? '✅ Working' : '❌ No API Keys',
         exercise_tracking: '✅ Working',
         databases: '🔄 Mock Data',
-        ai_providers: '✅ Mock Available'
+        ai_providers: availableProviders.length > 0 ? `✅ ${availableProviders.join(', ')}` : '❌ No API Keys'
       }
     });
   } catch (error) {
@@ -184,33 +196,8 @@ app.post('/auth/guest', async (req, res) => {
   }
 });
 
-// Real AI chat endpoint (simple mock for now)
-app.post('/api/v1/chat', async (req, res) => {
-  try {
-    const { message, provider = 'openai' } = req.body;
-
-    // Mock AI response
-    const mockResponse = {
-      response: `This is a mock AI response to: "${message}". In production, this would connect to real AI providers.`,
-      provider: provider,
-      model: 'mock-model',
-      tokens: 50,
-      responseTime: 150
-    };
-
-    res.json({
-      success: true,
-      data: mockResponse,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to process chat message',
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+// Use real AI chat routes
+app.use('/api/v1/chat', chatRoutes);
 
 // AI providers health check endpoint
 app.get('/api/v1/ai/health', async (req, res) => {

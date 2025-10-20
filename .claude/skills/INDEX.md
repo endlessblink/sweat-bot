@@ -10,6 +10,10 @@
 - 🧪 [E2E Testing Automation](e2e-testing/) - Comprehensive testing framework
 - 📊 [Monitoring & Observability](monitoring-observability/) - Production monitoring systems
 - ⚙️ [CI/CD Automation](cicd-automation/) - Build and deployment pipelines
+- 🔍 [Debugging & Troubleshooting](debugging-troubleshooting/) - Systematic error analysis and incident response
+- 🔐 [Security & Compliance](security-compliance/) - OWASP vulnerability scanning and security auditing
+- 🎨 [UX/UI Design & Frontend Development](ux-ui-frontend/) - React components and accessibility
+- 📚 [Documentation & Knowledge Management](documentation-knowledge/) - API docs and knowledge base
 
 ---
 

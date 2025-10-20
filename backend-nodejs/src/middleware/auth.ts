@@ -1,4 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
+
+// Extend Express Request interface to include body, headers, query, params
+declare global {
+  namespace Express {
+    interface Request {
+      body: any;
+      headers: any;
+      query: any;
+      params: any;
+    }
+  }
+}
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import { CustomError } from './errorHandler';

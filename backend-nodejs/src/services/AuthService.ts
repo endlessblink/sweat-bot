@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import { DatabaseService } from './DatabaseService';
-import { User, CreateUserRequest, LoginRequest } from '@/models/User';
+import { User, CreateUserRequest, LoginRequest } from '../models/User';
 import { CustomError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
 

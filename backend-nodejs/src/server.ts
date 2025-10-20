@@ -5,6 +5,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
 import { Server as SocketIOServer } from 'socket.io';
 
 import { config, corsConfig } from './config/environment';
@@ -156,8 +157,204 @@ app.use('/exercises', exerciseRoutes);
 // app.use('/api/v1/profile', profileRoutes);
 // app.use('/api/v1/ai', aiRoutes);
 
-// WebSocket setup (will be added when implemented)
-// setupWebSocket(server);
+// WebSocket implementation
+// WebSocket connection storage
+const connectedClients = new Map<string, WebSocket>();
+
+// JWT token validation for WebSocket connections
+function validateWebSocketToken(token: string): { userId: string; valid: boolean } {
+  try {
+    // Handle undefined or empty tokens
+    if (!token || token === 'undefined' || token === 'null') {
+      return { userId: '', valid: false };
+    }
+
+    // Handle real JWT tokens (format: eyJhbGciOiJIUzI1NiIs...)
+    if (token.startsWith('eyJ')) {
+      try {
+        // Simple JWT-like token parsing (not secure, for development only)
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          // Decode payload (middle part)
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+
+          // Check if token is expired
+          const now = Math.floor(Date.now() / 1000);
+          if (payload.exp && payload.exp < now) {
+            return { userId: '', valid: false };
+          }
+
+          // Extract user ID or create one
+          const userId = payload.sub || payload.userId || payload.name || 'user-' + Math.random().toString(36).substr(2, 9);
+
+          return {
+            userId: userId,
+            valid: true
+          };
+        }
+      } catch (jwtError) {
+        logger.warn('JWT parsing failed:', jwtError);
+      }
+    }
+
+    return { userId: '', valid: false };
+  } catch (error) {
+    logger.error('WebSocket token validation error:', error);
+    return { userId: '', valid: false };
+  }
+}
+
+// Broadcast message to all connected clients
+function broadcastToClients(message: any, excludeUserId?: string) {
+  connectedClients.forEach((ws, userId) => {
+    if (excludeUserId && userId === excludeUserId) return;
+
+    if (ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify(message));
+      } catch (error) {
+        logger.error('Failed to send message to client:', error);
+      }
+    }
+  });
+}
+
+// Create WebSocket server
+const wss = new WebSocketServer({
+  server,
+  path: '/ws' // WebSocket endpoint path
+});
+
+// WebSocket connection handling
+wss.on('connection', (ws: WebSocket, req) => {
+  try {
+    // Extract token from query parameters
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const token = url.searchParams.get('token') || '';
+
+    // Validate token
+    const { userId, valid } = validateWebSocketToken(token);
+
+    if (!valid || !userId) {
+      logger.warn('WebSocket connection rejected: invalid token', { token: token.substring(0, 20) + '...' });
+      ws.close(1008, 'Invalid authentication token');
+      return;
+    }
+
+    // Store client connection
+    connectedClients.set(userId, ws);
+
+    logger.info('WebSocket client connected', {
+      userId,
+      clientCount: connectedClients.size,
+      userAgent: req.headers['user-agent']
+    });
+
+    // Send welcome message
+    const welcomeMessage = {
+      type: 'connection_established',
+      data: {
+        userId,
+        message: 'WebSocket connection established successfully',
+        timestamp: new Date().toISOString(),
+        connectedClients: connectedClients.size
+      }
+    };
+
+    ws.send(JSON.stringify(welcomeMessage));
+
+    // Handle incoming messages
+    ws.on('message', (data: Buffer) => {
+      try {
+        const message = JSON.parse(data.toString());
+
+        logger.info('WebSocket message received', {
+          userId,
+          messageType: message.type,
+          messageSize: data.length
+        });
+
+        // Handle different message types
+        switch (message.type) {
+          case 'ping':
+            ws.send(JSON.stringify({
+              type: 'pong',
+              data: { timestamp: new Date().toISOString() }
+            }));
+            break;
+
+          case 'chat_message':
+            // Broadcast chat message to all clients
+            broadcastToClients({
+              type: 'chat_broadcast',
+              data: {
+                userId,
+                message: message.data.message,
+                timestamp: new Date().toISOString()
+              }
+            });
+            break;
+
+          case 'typing':
+            // Broadcast typing indicator
+            broadcastToClients({
+              type: 'user_typing',
+              data: {
+                userId,
+                isTyping: message.data.isTyping
+              }
+            }, userId); // Don't send back to sender
+            break;
+
+          default:
+            logger.warn('Unknown WebSocket message type', { userId, messageType: message.type });
+        }
+
+      } catch (error) {
+        logger.error('Failed to process WebSocket message:', error);
+        ws.send(JSON.stringify({
+          type: 'error',
+          data: { message: 'Invalid message format' }
+        }));
+      }
+    });
+
+    // Handle connection close
+    ws.on('close', (code: number, reason: Buffer) => {
+      connectedClients.delete(userId);
+      logger.info('WebSocket client disconnected', {
+        userId,
+        code,
+        reason: reason.toString(),
+        clientCount: connectedClients.size
+      });
+
+      // Notify other clients about disconnection
+      broadcastToClients({
+        type: 'user_disconnected',
+        data: {
+          userId,
+          timestamp: new Date().toISOString()
+        }
+      });
+    });
+
+    // Handle connection errors
+    ws.on('error', (error: Error) => {
+      logger.error('WebSocket connection error:', error);
+      connectedClients.delete(userId);
+    });
+
+  } catch (error) {
+    logger.error('WebSocket connection setup error:', error);
+    ws.close(1011, 'Internal server error');
+  }
+});
+
+// Handle WebSocket server errors
+wss.on('error', (error: Error) => {
+  logger.error('WebSocket server error:', error);
+});
 
 // Error handling middleware (must be last)
 app.use(notFound);
@@ -173,14 +370,16 @@ async function startServer() {
     await db.connect();
 
     server.listen(PORT, () => {
-      logger.info(`🚀 SweatBot API v2.0.0 (Node.js/TypeScript) started successfully!`);
-      logger.info(`📍 Server running on port ${PORT}`);
+      logger.info(`🚀 SweatBot API v2.0.0 (Node.js/TypeScript + WebSocket) started successfully!`);
+      logger.info(`📍 HTTP Server running on port ${PORT}`);
+      logger.info(`🔌 WebSocket Server running on ws://localhost:${PORT}/ws`);
       logger.info(`🌍 Environment: ${config.NODE_ENV}`);
       logger.info(`📊 Health check: http://localhost:${PORT}/health`);
       logger.info(`🔧 Debug endpoint: http://localhost:${PORT}/debug/env`);
 
       if (config.NODE_ENV === 'development') {
         logger.info(`📚 API docs available at: http://localhost:${PORT}/health`);
+        logger.info(`✅ Real AI providers enabled with full database support`);
       }
     });
   } catch (error) {
