@@ -1,12 +1,12 @@
-# TypeScript Node.js deployment configuration - FORCE NODE JS READ (v4 - Cache Bust)
+# TypeScript Node.js deployment configuration - FORCE NODE JS READ (v5 - Major Change)
 services:
   - type: web
-    name: sweatbot-nodejs
+    name: sweat-bot
     env: node
     runtime: node
     plan: free
     rootDir: backend-nodejs
-    buildCommand: "npm install && npm run build"
+    buildCommand: "npm ci --production=false && npm run build && echo 'Node.js build completed successfully'"
     startCommand: "node dist/server-simple.js"
     healthCheckPath: /health
     envVars:
