@@ -7,7 +7,7 @@
     "start": "node dist/server.js",
     "dev": "nodemon src/server.ts",
     "dev:simple": "nodemon src/server-simple.ts",
-    "build": "./node_modules/.bin/tsc --outDir dist --target ES2020 --module commonjs --esModuleInterop --skipLibCheck",
+    "build": "tsc --outDir dist --target ES2020 --module commonjs --esModuleInterop --skipLibCheck",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
