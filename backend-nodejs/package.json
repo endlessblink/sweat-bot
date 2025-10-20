@@ -2,10 +2,10 @@
   "name": "sweatbot-api",
   "version": "2.0.0",
   "description": "SweatBot Hebrew Fitness AI Tracker - Node.js/TypeScript API",
-  "main": "dist/server.js",
+  "main": "dist/server-simple.js",
   "scripts": {
-    "start": "node dist/server.js",
-    "dev": "nodemon src/server.ts",
+    "start": "node dist/server-simple.js",
+    "dev": "nodemon src/server-simple.ts",
     "build": "npx tsc --outDir dist --target ES2020 --module commonjs --esModuleInterop --skipLibCheck",
     "test": "jest",
     "test:watch": "jest --watch",
