@@ -330,6 +330,9 @@ export default function SweatBotChat({
       
       // CRITICAL FIX: Trust the agent's response - it has Hebrew parsing fallback
       let cleanResponse: string;
+          console.log('[SweatBotChat DEBUG] aiResponse type:', typeof aiResponse);
+      console.log('[SweatBotChat DEBUG] aiResponse value:', aiResponse);
+
       if (typeof aiResponse === 'string') {
         cleanResponse = aiResponse;
       } else if (aiResponse && typeof aiResponse === 'object') {

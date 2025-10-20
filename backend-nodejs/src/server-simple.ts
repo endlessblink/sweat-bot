@@ -9,15 +9,31 @@ import { logger } from './utils/logger';
 // Load environment variables
 dotenv.config();
 
+// Restart trigger for missing endpoints fix
+
 const app = express();
 
-// Middleware
-app.use(helmet());
+// Middleware - CORS must come first to avoid helmet blocking it
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? ['https://sweat-bot.onrender.com']
-    : ['http://localhost:8005', 'http://localhost:8007', 'http://localhost:3000'],
-  credentials: true
+    : ['http://localhost:8005', 'http://localhost:8007', 'http://localhost:8008', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  maxAge: 86400
+}));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "connect-src": ["'self'", "ws:", "wss:", "http://localhost:8005", "http://localhost:8007", "http://localhost:8008", "http://localhost:3000"]
+    }
+  }
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -274,6 +290,120 @@ app.get('/api/memory/conversations/:userId', async (req, res) => {
   }
 });
 
+// Get personal context for memory
+app.get('/api/memory/context/personal', async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    // Mock personal context - in real version would fetch from MongoDB
+    res.json({
+      success: true,
+      data: {
+        context: {
+          userId: userId || 'anonymous',
+          preferences: {
+            language: 'hebrew',
+            fitnessLevel: 'intermediate',
+            goals: ['strength', 'consistency']
+          },
+          recentTopics: ['exercise_form', 'nutrition', 'recovery'],
+          personalityProfile: {
+            communicationStyle: 'encouraging',
+            humorLevel: 'moderate',
+            motivationApproach: 'positive_reinforcement'
+          }
+        },
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Get personal context error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve personal context'
+    });
+  }
+});
+
+// Get chat sessions
+app.get('/api/memory/sessions', async (req, res) => {
+  try {
+    const { userId, limit = 10 } = req.query;
+
+    // Mock sessions - in real version would fetch from MongoDB
+    const mockSessions = [
+      {
+        id: 'session_1',
+        userId: userId || 'anonymous',
+        startTime: new Date(Date.now() - 86400000).toISOString(),
+        endTime: new Date(Date.now() - 86000000).toISOString(),
+        messageCount: 12,
+        topics: ['push-ups', 'protein', 'recovery'],
+        sentiment: 'positive'
+      },
+      {
+        id: 'session_2',
+        userId: userId || 'anonymous',
+        startTime: new Date(Date.now() - 172800000).toISOString(),
+        endTime: new Date(Date.now() - 172000000).toISOString(),
+        messageCount: 8,
+        topics: ['running', 'cardio', 'endurance'],
+        sentiment: 'neutral'
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: {
+        sessions: mockSessions.slice(0, parseInt(limit as string)),
+        total: mockSessions.length,
+        userId: userId || 'anonymous',
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('Get sessions error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve sessions'
+    });
+  }
+});
+
+// Refresh authentication token
+app.post('/auth/refresh', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    // Mock token refresh - in real version would validate JWT and issue new one
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token is required for refresh'
+      });
+    }
+
+    // Mock validation and refresh
+    const newToken = 'refreshed-token-' + Math.random().toString(36).substr(2);
+
+    res.json({
+      success: true,
+      data: {
+        token: newToken,
+        expiresAt: new Date(Date.now() + 3600000).toISOString(), // 1 hour
+        refreshToken: 'refresh-' + Math.random().toString(36).substr(2)
+      },
+      message: 'Token refreshed successfully'
+    });
+  } catch (error) {
+    logger.error('Token refresh error:', error);
+    res.status(401).json({
+      success: false,
+      error: 'Failed to refresh token'
+    });
+  }
+});
+
 // Simple exercise logging
 app.post('/exercises', async (req, res) => {
   try {
@@ -337,6 +467,17 @@ app.get('/exercises', async (req, res) => {
   }
 });
 
+// Debug log endpoint for mobile debugging
+app.post('/api/v1/stt/debug-log', (req, res) => {
+  try {
+    console.log('[Mobile Debug]', req.body);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('[Mobile Debug Error]', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);
@@ -360,8 +501,13 @@ const connectedClients = new Map<string, WebSocket>();
 // JWT token validation for WebSocket connections
 function validateWebSocketToken(token: string): { userId: string; valid: boolean } {
   try {
+    // Handle undefined or empty tokens
+    if (!token || token === 'undefined' || token === 'null') {
+      return { userId: '', valid: false };
+    }
+
     // Mock validation for guest tokens (in production, use proper JWT verification)
-    if (token && token.startsWith('guest-token-')) {
+    if (token.startsWith('guest-token-')) {
       return {
         userId: 'guest-' + Math.random().toString(36).substr(2, 9),
         valid: true
@@ -369,11 +515,42 @@ function validateWebSocketToken(token: string): { userId: string; valid: boolean
     }
 
     // Mock validation for user tokens
-    if (token && token.startsWith('mock-jwt-token-')) {
+    if (token.startsWith('mock-jwt-token-')) {
       return {
         userId: 'user-' + Math.random().toString(36).substr(2, 9),
         valid: true
       };
+    }
+
+    // Handle real JWT tokens (format: eyJhbGciOiJIUzI1NiIs...)
+    if (token.startsWith('eyJ')) {
+      // For now, accept any valid-looking JWT token and extract a mock user ID
+      // In production, this should verify the JWT signature and claims
+      try {
+        // Simple JWT-like token parsing (not secure, for development only)
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          // Decode payload (middle part)
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+
+          // Check if token is expired
+          const now = Math.floor(Date.now() / 1000);
+          if (payload.exp && payload.exp < now) {
+            return { userId: '', valid: false };
+          }
+
+          // Extract user ID or create one
+          const userId = payload.sub || payload.userId || payload.name || 'user-' + Math.random().toString(36).substr(2, 9);
+
+          return {
+            userId: userId,
+            valid: true
+          };
+        }
+      } catch (jwtError) {
+        // If JWT parsing fails, treat as invalid
+        logger.warn('JWT parsing failed:', jwtError);
+      }
     }
 
     return { userId: '', valid: false };

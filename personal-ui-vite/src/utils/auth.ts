@@ -76,17 +76,34 @@ export interface StoredUser {
  * Real users have persistent tokens, guests get 23-hour tokens
  */
 export async function getOrCreateGuestToken(): Promise<string> {
-  // Check for existing valid token (real user or guest)
+  // Force clear all corrupted authentication data
   const storedToken = localStorage.getItem(TOKEN_KEY);
   const storedUser = localStorage.getItem(USER_KEY);
 
-  if (storedToken && storedUser) {
+  // If token is undefined or corrupted, clear everything and start fresh
+  if (!storedToken || storedToken === 'undefined' || !storedUser) {
+    console.log('🧹 Clearing corrupted authentication data');
+    clearAuth();
+  } else {
     try {
       const user = JSON.parse(storedUser);
 
+      // Validate user object structure
+      if (!user || typeof user !== 'object') {
+        console.log('🧹 Invalid user object structure, clearing data');
+        clearAuth();
+        throw new Error('Invalid user object structure');
+      }
+
       // Real users (non-guest) have long-lived tokens
       if (!user.is_guest) {
-        console.log('🔐 Using real user token:', user.username || 'real-user');
+        // Validate real user has required fields
+        if (!user.username && !user.id) {
+          console.log('🧹 Corrupted real user token, clearing and creating new guest token');
+          clearAuth();
+          throw new Error('Invalid real user data');
+        }
+        console.log('🔐 Using real user token:', user.username || user.id || 'real-user');
         return storedToken;
       }
 
@@ -97,7 +114,8 @@ export async function getOrCreateGuestToken(): Promise<string> {
         return storedToken;
       }
     } catch (error) {
-      console.warn('Invalid stored token, creating new one');
+      console.log('🧹 Invalid stored token, creating new one:', error.message);
+      clearAuth(); // Clear corrupted data
     }
   }
 

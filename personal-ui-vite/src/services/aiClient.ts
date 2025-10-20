@@ -105,20 +105,27 @@ class AIClient {
 
       const data = await response.json();
       console.log('[AI CLIENT] Success - response received');
+      console.log('[AI CLIENT] Raw response data:', JSON.stringify(data, null, 2));
 
       // Transform the chat/message response to match the expected ChatResponse format
       const transformedResponse: ChatResponse = {
-        content: data.response,
-        model: data.model_used || 'openai-gpt-4o-mini',
-        provider: 'openai',
+        content: data.data?.response || data.response, // Backend returns {success: true, data: {response: "..."}}
+        model: data.data?.model || data.model_used || 'openai-gpt-4o-mini',
+        provider: data.data?.provider || 'openai',
         tool_calls: [],
         usage: {
           prompt_tokens: 0,
           completion_tokens: 0,
-          total_tokens: 0
+          total_tokens: data.data?.tokens || 0
         },
         finish_reason: 'stop'
       };
+
+      console.log('[AI CLIENT] Backend success:', data.success);
+      console.log('[AI CLIENT] Backend data structure:', !!data.data);
+      console.log('[AI CLIENT] Transformed response content:', transformedResponse.content);
+      console.log('[AI CLIENT] Transformed response type:', typeof transformedResponse.content);
+      console.log('[AI CLIENT] Response content length:', transformedResponse.content ? transformedResponse.content.length : 'undefined');
 
       console.log(`✅ AI response from ${transformedResponse.provider}/${transformedResponse.model}`);
       return transformedResponse;

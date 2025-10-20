@@ -4,8 +4,9 @@ services:
     runtime: node
     plan: free
     env: node
-    buildCommand: "cd backend-nodejs && npm install && npm run build"
-    startCommand: "cd backend-nodejs && npm start"
+    rootDir: backend-nodejs
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
     healthCheckPath: /health
     autoDeploy: true
     envVars:

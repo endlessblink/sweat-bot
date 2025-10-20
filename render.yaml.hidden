@@ -6,8 +6,8 @@ services:
     runtime: node
     plan: free
     rootDir: backend-nodejs
-    buildCommand: "npm install --production=false && npm run build && echo 'NODE.JS DEPLOYMENT SUCCESS - v8'"
-    startCommand: "node dist/server-simple.js"
+    buildCommand: "npm install --production=false && npm run build && echo 'FULL SERVER DEPLOYMENT - v9'"
+    startCommand: "node dist/server.js"
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV

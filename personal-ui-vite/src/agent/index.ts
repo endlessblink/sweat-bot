@@ -266,10 +266,12 @@ export class SweatBotAgent {
         finalResponse = toolResults.map(r => r.result).join('\n\n');
       }
 
-      // Sanitize response
+      // Validate response safety before returning
       if (!isResponseSafe(finalResponse)) {
         console.warn('Response contains function definitions, sanitizing');
+        console.log('[DEBUG] Response before sanitize:', JSON.stringify(finalResponse));
         finalResponse = sanitizeResponse(finalResponse, { lastUserMessage: cleanMessage });
+        console.log('[DEBUG] Response after sanitize:', JSON.stringify(finalResponse));
       }
 
       // Store in conversation history

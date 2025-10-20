@@ -12,6 +12,12 @@ export class MobileDebugger {
   private maxLogs = 50;
   private isEnabled = false;
   private backendUrl: string;
+  private originalConsole: {
+    log: typeof console.log;
+    warn: typeof console.warn;
+    error: typeof console.error;
+    info: typeof console.info;
+  } | null = null;
 
   constructor() {
     this.backendUrl = this.getBackendUrl();
@@ -267,7 +273,8 @@ export class MobileDebugger {
   }
 
   private interceptConsole(): void {
-    const originalConsole = {
+    // Store original console methods at class level
+    this.originalConsole = {
       log: console.log,
       warn: console.warn,
       error: console.error,
@@ -275,23 +282,28 @@ export class MobileDebugger {
     };
 
     // Override console methods to send logs to backend
+    const originalLog = this.originalConsole.log.bind(this.originalConsole);
+    const originalWarn = this.originalConsole.warn.bind(this.originalConsole);
+    const originalError = this.originalConsole.error.bind(this.originalConsole);
+    const originalInfo = this.originalConsole.info.bind(this.originalConsole);
+
     console.log = (...args: any[]) => {
-      originalConsole.log(...args);
+      originalLog(...args);
       this.sendToBackend('info', args);
     };
 
     console.warn = (...args: any[]) => {
-      originalConsole.warn(...args);
+      originalWarn(...args);
       this.sendToBackend('warn', args);
     };
 
     console.error = (...args: any[]) => {
-      originalConsole.error(...args);
+      originalError(...args);
       this.sendToBackend('error', args);
     };
 
     console.info = (...args: any[]) => {
-      originalConsole.info(...args);
+      originalInfo(...args);
       this.sendToBackend('info', args);
     };
 
@@ -345,7 +357,13 @@ export class MobileDebugger {
         }),
       }).catch(err => {
         // Silently fail to avoid infinite loops
-        originalConsole.warn('[MobileDebugger] Failed to send log:', err);
+        if (this.originalConsole && this.originalConsole.warn) {
+          this.originalConsole.warn('[MobileDebugger] Failed to send log:', err);
+        } else {
+          // Use native console methods directly to avoid circular calls
+          const nativeConsole = window.console || { warn: () => {} };
+          nativeConsole.warn('[MobileDebugger] Failed to send log:', err);
+        }
       });
 
     } catch (error) {
@@ -357,7 +375,8 @@ export class MobileDebugger {
   // Method to test connection to backend
   async testBackendConnection(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.backendUrl}/api/v1/stt/health`);
+      // Test the health endpoint instead (more reliable)
+      const response = await fetch(`${this.backendUrl}/health`);
       const result = await response.json();
       this.log('🔗 Backend connection test successful', result);
       return true;
