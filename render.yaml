@@ -1,7 +1,7 @@
-# TypeScript Node.js deployment configuration - Force Node.js deployment (v3)
+# TypeScript Node.js deployment configuration - FORCE NODE JS READ (v4 - Cache Bust)
 services:
   - type: web
-    name: sweat-bot
+    name: sweatbot-nodejs
     env: node
     runtime: node
     plan: free
