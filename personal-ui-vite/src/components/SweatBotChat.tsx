@@ -75,9 +75,31 @@ export default function SweatBotChat({
   const showHistory = historyPanelControl ? historyPanelControl.isOpen : internalHistoryPanel;
   const setShowHistory = historyPanelControl ? historyPanelControl.setIsOpen : setInternalHistoryPanel;
   const [currentSessionId] = useState(() => `session_${Date.now()}`);
-  const [agent] = useState(() => getSweatBotAgent({ userId: 'personal' }));
+  const [agent, setAgent] = useState(() => getSweatBotAgent({ userId: 'personal' }));
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize agent with correct authenticated user ID
+  useEffect(() => {
+    const initializeAgent = async () => {
+      try {
+        const { getUserId } = await import('../utils/auth');
+        const userId = getUserId();
+
+        if (userId && userId !== 'personal') {
+          console.log('[SweatBotChat] Initializing agent with authenticated userId:', userId);
+          const newAgent = getSweatBotAgent({ userId });
+          setAgent(newAgent);
+        } else {
+          console.log('[SweatBotChat] Using default userId (guest mode)');
+        }
+      } catch (error) {
+        console.error('[SweatBotChat] Failed to initialize agent with user ID:', error);
+      }
+    };
+
+    initializeAgent();
+  }, []);
 
   useEffect(() => {
     let ws: WebSocket | null = null;

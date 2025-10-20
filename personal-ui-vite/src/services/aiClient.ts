@@ -76,7 +76,7 @@ class AIClient {
         session_id: `frontend_${Date.now()}`
       };
 
-      const response = await fetch(`${baseUrl}/chat/message`, {
+      const response = await fetch(`${baseUrl}/api/v1/chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

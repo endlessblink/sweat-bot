@@ -1,0 +1,134 @@
+# SweatBot Claude Context Configuration
+
+This file helps Claude Code understand the SweatBot project structure and skills.
+
+## Project Overview
+
+**SweatBot**: Hebrew Fitness AI Assistant with voice interaction, gamification, and real-time WebSocket features.
+
+**Stack**:
+- Backend: FastAPI (Python 3.11) + Uvicorn
+- Frontend: React + Vite PWA
+- Database: PostgreSQL + MongoDB (optional)
+- Cache: Redis
+- APIs: Gemini/Groq/OpenAI
+- Deployment: Render + Doppler
+
+## Available Skills
+
+### 1. Render Deployment Skill
+**Location**: `docs/render-deployment/`
+
+**Purpose**: Complete guide for deploying SweatBot to Render with full documentation, automation scripts, and troubleshooting.
+
+**Start Here**: `docs/render-deployment/START_HERE.md`
+
+**What's Included**:
+- `SKILL.md` - Main deployment guide
+- `references/QUICK_REFERENCE.md` - 30-second cheat sheet
+- `references/MANUAL_SETUP.md` - Step-by-step UI walkthrough
+- `references/ENVIRONMENT_VARIABLES.md` - All variables explained
+- `references/DOPPLER_SETUP.md` - Secret management with Doppler
+- `references/DATABASE_MANAGEMENT.md` - PostgreSQL & migrations
+- `references/TROUBLESHOOTING.md` - Common issues & fixes
+- `references/WEBSOCKET_TROUBLESHOOTING.md` - Real-time features
+- `scripts/deploy.sh` - Deployment automation
+- `scripts/check-env.sh` - Environment verification
+
+**Usage**:
+When discussing deployment to Render, Claude should:
+1. Reference the Render deployment skill
+2. Point to appropriate guide based on user's needs
+3. Use scripts for automation
+4. Guide through troubleshooting if issues arise
+
+## Development Workflow
+
+### For Render Deployment Questions
+Ask Claude: "Help me deploy SweatBot to Render" or "I need to set up Doppler secrets"
+
+Claude will:
+1. Read `docs/render-deployment/START_HERE.md` 
+2. Choose appropriate path (quick/manual/secure)
+3. Guide through setup with references
+4. Provide automation scripts
+
+### For SweatBot Development
+- Backend code: `backend/app/`
+- Frontend code: `personal-ui-vite/src/`
+- Configuration: `render.yaml`, `.env.example`
+- Database: `backend/alembic/`, `backend/models/`
+
+## Important Files
+
+- `render.yaml` - Render deployment configuration
+- `.env.example` - Environment variables template
+- `Procfile` - Alternative start command
+- `package.json` - Frontend dependencies
+- `backend/requirements.txt` - Backend dependencies
+- `CLAUDE.md` - Project context (if exists)
+
+## Key Directories
+
+```
+sweatbot/
+├── docs/render-deployment/          ← New deployment skill
+├── backend/                         ← FastAPI application
+│   ├── app/main.py                 ← Entry point
+│   ├── requirements.txt            ← Dependencies
+│   └── alembic/                    ← Database migrations
+├── personal-ui-vite/               ← React frontend
+│   ├── src/
+│   └── package.json
+├── config/                         ← Configuration files
+├── render.yaml                     ← Render deployment config
+└── .env.example                    ← Environment template
+```
+
+## Deployment Quick Commands
+
+```bash
+# Check environment
+bash docs/render-deployment/scripts/check-env.sh --local
+
+# Deploy with tests
+bash docs/render-deployment/scripts/deploy.sh deploy
+
+# View health
+bash docs/render-deployment/scripts/deploy.sh health
+
+# Verify Render service
+bash docs/render-deployment/scripts/check-env.sh --render
+```
+
+## When to Use Render Deployment Skill
+
+✅ Do use when:
+- Deploying to Render
+- Setting up Doppler
+- Configuring environment variables
+- Troubleshooting deployment issues
+- Managing PostgreSQL database
+- Handling WebSocket errors
+- Looking for best practices
+
+❌ Don't use for:
+- Local development setup (use readme in root)
+- Frontend component development
+- Backend API design
+- Database schema design
+
+## Quick Links
+
+- Start Deployment: `docs/render-deployment/START_HERE.md`
+- Troubleshooting: `docs/render-deployment/references/TROUBLESHOOTING.md`
+- Quick Reference: `docs/render-deployment/references/QUICK_REFERENCE.md`
+- SweatBot Repository: (GitHub link)
+- Render Docs: https://render.com/docs
+- Doppler Docs: https://docs.doppler.com
+
+---
+
+**Last Updated**: October 2024
+**Skill Version**: 1.0.0
+**SweatBot Version**: 1.0.0

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "TASK-62840",
+    "title": "Fix TypeScript compilation errors in Node.js backend",
+    "description": "Fix TypeScript compilation errors in Node.js backend - MAINTAIN FULL FUNCTIONALITY\n\nWe need to fix all TypeScript errors in the main server.ts and related files while maintaining ALL original functionality:\n- Real AI provider integration (OpenAI, Groq, Gemini, Anthropic) - not mock responses\n- Complete database connections (PostgreSQL, MongoDB, Redis)\n- Full authentication system with JWT\n- All exercise tracking features\n- WebSocket support for real-time features\n- Voice processing capabilities\n\nDo NOT use simplified/mock versions. We need exact parity with Python backend.",
+    "status": "completed",
+    "priority": "medium",
+    "project": "sweatbot-nodejs-migration",
+    "created": "2025-10-19T06:38:19.575Z",
+    "updated": "2025-10-19T06:53:22.140Z"
+  },
+  {
+    "id": "TASK-83646",
+    "title": "Test Node.js backend locally and verify all endpoints",
+    "description": "Test the complete Node.js backend locally to ensure:\n- Server starts successfully on port 8000\n- All API endpoints respond correctly (/health, /auth/*, /api/v1/chat/*, /exercises/*)\n- Database connections work (PostgreSQL, MongoDB, Redis)\n- AI providers respond with real API calls\n- Authentication flow works (register, login, JWT tokens)\n- Exercise logging and retrieval functions\n- Error handling works properly\n\nUse curl/Postman to test endpoints and verify responses match expected format.",
+    "status": "completed",
+    "priority": "medium",
+    "project": "sweatbot-nodejs-migration",
+    "created": "2025-10-19T06:38:28.055Z",
+    "updated": "2025-10-19T06:55:01.971Z"
+  },
+  {
+    "id": "TASK-17614",
+    "title": "Clean up Python remains to avoid confusion",
+    "description": "Remove all Python backend files to prevent confusion:\n- Archive or delete backend/ directory (Python FastAPI)\n- Remove Python-specific files (requirements*.txt, render.yaml for Python)\n- Keep only backend-nodejs/ as the definitive backend\n- Update any documentation that references Python structure\n- Ensure no conflicting configurations remain\n- Clean up any Python caches or temporary files\n\nThis ensures a clean, single-backend architecture.",
+    "status": "todo",
+    "priority": "medium",
+    "project": "sweatbot-nodejs-migration",
+    "created": "2025-10-19T06:38:49.278Z"
+  },
+  {
+    "id": "TASK-47498",
+    "title": "Deploy Node.js backend to Render staging environment",
+    "description": "Deploy the complete Node.js backend to Render using render-nodejs.yaml:\n- Push backend-nodejs/ code to GitHub\n- Create new Render service or update existing one\n- Use render-nodejs.yaml configuration (Node.js runtime)\n- Verify Doppler secrets are configured for Node.js\n- Test all endpoints on staging URL\n- Monitor deployment logs for any issues\n- Ensure databases connect properly in production\n- Verify AI providers work with real API keys\n\nExpected: <1 minute build time, 99%+ success rate",
+    "status": "todo",
+    "priority": "medium",
+    "project": "sweatbot-nodejs-migration",
+    "created": "2025-10-19T06:38:56.010Z"
+  },
+  {
+    "id": "TASK-24524",
+    "title": "Run comprehensive E2E tests against Node.js backend",
+    "description": "Execute comprehensive end-to-end testing using Playwright:\n- Test complete user registration and login flow\n- Verify AI chat functionality with all providers (OpenAI, Groq, Anthropic, Gemini)\n- Test exercise logging, history retrieval, and statistics\n- Verify WebSocket connections for real-time features\n- Test voice processing (if implemented)\n- Validate error handling and edge cases\n- Check database operations (create, read, update, delete)\n- Verify JWT authentication and authorization\n- Test API rate limiting and security measures\n\nEnsure all tests pass with the new Node.js backend before production migration.",
+    "status": "todo",
+    "priority": "medium",
+    "project": "sweatbot-nodejs-migration",
+    "created": "2025-10-19T06:39:01.010Z"
+  },
+  {
+    "id": "TASK-22115",
+    "title": "Migrate production traffic from Python to Node.js",
+    "description": "Execute production cutover from Python FastAPI to Node.js backend:\n- Update Render service configuration to use backend-nodejs/\n- Switch DNS/routing to point to Node.js service\n- Monitor for any errors or performance issues\n- Keep Python backend as backup for 24 hours\n- Verify all user functionality works correctly\n- Check AI responses are identical to Python version\n- Monitor database operations and data integrity\n- Update frontend API calls if needed (should be compatible)\n- Deprovision Python backend after successful migration\n\nGoal: Zero downtime migration with identical functionality.",
+    "status": "todo",
+    "priority": "medium",
+    "project": "sweatbot-nodejs-migration",
+    "created": "2025-10-19T06:39:31.777Z"
+  }
+]

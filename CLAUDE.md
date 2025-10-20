@@ -64,7 +64,7 @@ ALWAYS USE permanent clouldflare tunnel
 
 ## Port Configuration
 **MANDATORY PORT RANGE: 8000-8020 ONLY**
-- Port 8000: Backend API (FastAPI)
+- Port 8000: Backend API (Node.js/Express)
 - Port 8001: PostgreSQL
 - Port 8002: MongoDB
 - Port 8003: Redis
@@ -78,7 +78,7 @@ ALWAYS USE permanent clouldflare tunnel
 cd config/docker && doppler run -- docker-compose up -d
 
 # Start backend
-cd backend && doppler run -- python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+cd backend-nodejs && doppler run -- npm run dev
 
 # Start frontend
 cd personal-ui-vite && doppler run -- npm run dev
@@ -86,30 +86,35 @@ cd personal-ui-vite && doppler run -- npm run dev
 
 ### Quick Health Check
 ```bash
-curl http://localhost:8000/health/detailed
+curl http://localhost:8000/health
 ```
 
 ## Architecture Quick Reference
 
 ### Tech Stack
-- **Backend**: FastAPI (Python 3.11) - Port 8000
-- **Frontend**: Vite + React + TypeScript - Port 8005
-- **AI Framework**: Volt Agent (TypeScript, frontend-based)
+- **Backend**: Node.js + Express + TypeScript - Port 8000
+- **Frontend**: Vite + React 19 + TypeScript - Port 8005
+- **AI Framework**: SweatBotAgent (frontend-based with 7 tools)
+- **UI Library**: @assistant-ui/react + Radix UI + Tailwind CSS v4
 - **Databases**: PostgreSQL (8001), MongoDB (8002), Redis (8003)
-- **AI APIs**: OpenAI (gpt-4o-mini), Groq (llama-3.3-70b), Gemini (1.5-pro)
+- **AI APIs**: OpenAI (gpt-4o-mini), Groq (llama-3.3-70b), Gemini (1.5-pro), Anthropic Claude
 
 ### Key Files
-- `backend/app/main.py` - FastAPI entry point
-- `personal-ui-vite/src/agent/index.ts` - Volt Agent initialization
-- `personal-ui-vite/src/agent/tools/` - 5 SweatBot tools (TypeScript)
+- `backend-nodejs/src/server-simple.ts` - Express server entry point
+- `backend-nodejs/src/api/v1/chatSimple.ts` - Main chat endpoint
+- `backend-nodejs/src/services/aiProviderSimple.ts` - AI provider abstraction
+- `personal-ui-vite/src/agent/index.ts` - SweatBotAgent initialization
+- `personal-ui-vite/src/agent/tools/` - 7 SweatBot tools (TypeScript)
 - `personal-ui-vite/src/design-system/` - Unified design tokens
 
-### Volt Agent Tools (5 implemented)
+### SweatBot Agent Tools (7 implemented)
 1. **exerciseLogger** - Logs exercises with Hebrew support
 2. **statsRetriever** - Gets points and statistics
 3. **workoutDetails** - Shows workout history
 4. **dataManager** - Resets/clears data (with confirmation)
 5. **progressAnalyzer** - Analyzes trends and insights
+6. **goalSetter** - Sets fitness goals
+7. **personalizedWorkout** - Generates custom workouts
 
 ## Development Workflow
 
@@ -144,6 +149,34 @@ docker exec sweatbot_mongodb mongosh --quiet --eval "db.adminCommand('ping')"
 - **README.md** - Project overview and quick start
 - **ARCHITECTURE.md** - Detailed technical architecture
 - **docs/main-docs/** - Comprehensive documentation
+
+## 🚀 Development & Deployment Skills
+
+The following comprehensive guides are automatically imported for development and deployment:
+
+@.claude/skills/INDEX.md
+@.claude/skills/BACKEND_NODEJS_ARCHITECTURE.md
+@.claude/skills/SWEATBOT_AGENT_TOOLS.md
+@.claude/skills/FRONTEND_BACKEND_COMMUNICATION.md
+@.claude/skills/DATABASE_SETUP_AND_MIGRATIONS.md
+@.claude/skills/LOCAL_DEVELOPMENT_COMPLETE.md
+@.claude/skills/RENDER_DEPLOYMENT_ACTUAL.md
+@.claude/skills/QUICK_START.md
+@.claude/skills/RENDER_DEPLOYMENT.md
+@.claude/skills/ENVIRONMENT_SETUP.md
+@.claude/skills/TROUBLESHOOTING.md
+@.claude/skills/DOPPLER_SETUP.md
+
+**Quick Start**:
+- Understanding backend? → Read BACKEND_NODEJS_ARCHITECTURE.md
+- Agent tools development? → Read SWEATBOT_AGENT_TOOLS.md
+- Frontend-backend integration? → Read FRONTEND_BACKEND_COMMUNICATION.md
+- Database setup? → Read DATABASE_SETUP_AND_MIGRATIONS.md
+- Local development? → Read LOCAL_DEVELOPMENT_COMPLETE.md
+- Just deploying? → Read QUICK_START.md (5 minutes)
+- Production deployment? → Read RENDER_DEPLOYMENT_ACTUAL.md
+- Something broke? → Check TROUBLESHOOTING.md
+- Securing secrets? → Follow DOPPLER_SETUP.md
 
 ---
 

@@ -1,0 +1,101 @@
+[
+  {
+    "id": "TASK-38791",
+    "title": "Create complete Node.js backend with real AI integration (no mocks!)",
+    "description": "Enhance Node.js backend to have 100% feature parity with Python version - real AI calls, WebSocket support, database integration, memory storage, all endpoints working end-to-end",
+    "status": "in_progress",
+    "priority": "high",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:33:30.601Z"
+  },
+  {
+    "id": "TASK-54018",
+    "title": "Install all required dependencies for Node.js backend",
+    "description": "Install openai, groq-sdk, @google-ai/generativelanguage, google-auth-library, anthropic, socket.io, mongodb, pg, redis, jsonwebtoken, bcryptjs, and their TypeScript types",
+    "status": "pending",
+    "priority": "high",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:34:13.211Z"
+  },
+  {
+    "id": "TASK-86313",
+    "title": "Create real AI Provider service with OpenAI, Groq, Gemini, Anthropic integration",
+    "description": "Replace all mock responses with real AI API calls. Create src/services/aiProviderService.ts with support for OpenAI GPT-4o-mini (primary), Groq Llama-3.3-70b, Gemini 1.5-pro, and Anthropic Claude as fallbacks. Include Hebrew language support, error handling, and retry logic.",
+    "status": "pending",
+    "priority": "high",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:34:17.463Z"
+  },
+  {
+    "id": "TASK-61027",
+    "title": "Add WebSocket support with Socket.IO for real-time communication",
+    "description": "Implement /ws WebSocket endpoint with Socket.IO. Add connection handling with JWT authentication, real-time chat responses, exercise logging updates, and statistics updates. Create src/api/websocket/socketHandlers.ts with proper event handling.",
+    "status": "pending",
+    "priority": "high",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:34:21.556Z"
+  },
+  {
+    "id": "TASK-21057",
+    "title": "Create memory storage API for conversation history (/api/memory/message)",
+    "description": "Implement MongoDB integration for conversation storage. Create src/services/mongodbService.ts and src/api/v1/memory.ts with endpoints: POST /api/memory/message, GET /api/memory/conversations/:id, DELETE /api/memory/conversations/:id. Ensure message persistence across sessions.",
+    "status": "pending",
+    "priority": "high",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:34:29.306Z"
+  },
+  {
+    "id": "TASK-93380",
+    "title": "Integrate PostgreSQL for user data, statistics, and workout logging",
+    "description": "Create src/services/postgresService.ts with user management, exercise logging, statistics calculation, and workout history. Implement proper schema with users, exercises, workouts, and statistics tables. Add connection pooling and error handling.",
+    "status": "pending",
+    "priority": "high",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:34:35.584Z"
+  },
+  {
+    "id": "TASK-44967",
+    "title": "Integrate Redis for session management, caching, and rate limiting",
+    "description": "Create src/services/redisService.ts for session storage, caching, and rate limiting. Implement secure session management with JWT tokens, caching for frequently accessed data, and rate limiting to prevent abuse.",
+    "status": "pending",
+    "priority": "medium",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:34:40.678Z"
+  },
+  {
+    "id": "TASK-49741",
+    "title": "Create comprehensive authentication system with JWT",
+    "description": "Implement src/services/authService.ts and src/middleware/auth.ts with secure JWT authentication, password hashing with bcrypt, token refresh mechanism, and proper session management. Add endpoints: POST /auth/refresh, POST /auth/verify, POST /auth/logout.",
+    "status": "pending",
+    "priority": "high",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:34:45.146Z"
+  },
+  {
+    "id": "TASK-43220",
+    "title": "Add missing API endpoints: statistics, conversations, enhanced exercises",
+    "description": "Create src/api/v1/statistics.ts for user statistics and workout analytics. Enhance src/api/v1/exercises.ts with real database integration. Add src/api/v1/conversations.ts for conversation management. Ensure all endpoints match frontend requirements.",
+    "status": "pending",
+    "priority": "medium",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:34:49.879Z"
+  },
+  {
+    "id": "TASK-58347",
+    "title": "Create comprehensive test suite (unit, integration, E2E Playwright)",
+    "description": "Implement unit tests for all services, integration tests for database connections, and comprehensive E2E Playwright tests for all user flows. Test scenarios: registration/login, complete chat with real AI, exercise logging, conversation history, statistics, WebSocket updates, Hebrew language support.",
+    "status": "pending",
+    "priority": "high",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:34:55.285Z"
+  },
+  {
+    "id": "TASK-64363",
+    "title": "Performance optimization and security hardening",
+    "description": "Implement error handling middleware, input validation with Joi/Joi, SQL injection prevention, XSS protection, rate limiting, request logging, and performance monitoring. Ensure all endpoints are secure and performant under load.",
+    "status": "pending",
+    "priority": "medium",
+    "project": "sweatbot-nodejs-backend",
+    "created": "2025-10-19T07:35:00.402Z"
+  }
+]

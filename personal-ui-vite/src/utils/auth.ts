@@ -118,7 +118,8 @@ export async function getOrCreateGuestToken(): Promise<string> {
       throw new Error(`Failed to create guest user: ${response.status}`);
     }
 
-    const authData: AuthToken = await response.json();
+    const responseData = await response.json();
+    const authData: AuthToken = responseData.data;
 
     // Store token and user info
     localStorage.setItem(TOKEN_KEY, authData.access_token);

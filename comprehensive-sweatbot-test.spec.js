@@ -23,7 +23,7 @@ test.describe('SweatBot Comprehensive E2E Test', () => {
     // Step 1: Navigate to the application
     console.log('📍 Step 1: Navigating to SweatBot...');
     try {
-      await page.goto('http://localhost:8005', {
+      await page.goto('http://localhost:8007', {
         waitUntil: 'networkidle',
         timeout: 10000
       });
