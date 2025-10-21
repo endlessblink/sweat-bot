@@ -5,8 +5,8 @@ services:
     plan: free
     env: node
     rootDir: backend-nodejs
-    buildCommand: "npm install && npm run build"
-    startCommand: "npm start"
+    buildCommand: "npm install && npm run build && curl -Ls https://cli.doppler.com/install.sh | sh"
+    startCommand: "doppler run -- npm start"
     healthCheckPath: /health
     autoDeploy: true
     # Updated: 2025-10-21 - Added Doppler integration for Node.js backend
