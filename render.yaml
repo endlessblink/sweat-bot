@@ -9,6 +9,7 @@ services:
     startCommand: "npm start"
     healthCheckPath: /health
     autoDeploy: true
+    # Updated: 2025-10-21 - Added Doppler integration for Node.js backend
     envVars:
       - key: DOPPLER_PROJECT
         value: sweatbot
