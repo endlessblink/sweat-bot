@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: sweatbot-nodejs
+    name: sweatbot
     runtime: node
     plan: free
     env: node
@@ -10,17 +10,24 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     envVars:
+      - key: DOPPLER_PROJECT
+        value: sweatbot
+      - key: DOPPLER_CONFIG
+        value: prd
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 10000
+        value: 8000
       - key: DATABASE_URL
         fromDatabase:
-          name: sweatbot-db-nodejs
+          name: sweatbot-db
           property: connectionString
+      - key: LOG_LEVEL
+        value: info
 
 databases:
-  - name: sweatbot-db-nodejs
+  - name: sweatbot-db
     plan: free
-    databaseName: sweatbot
-    user: sweatbot
+    databaseName: hebrew_fitness
+    user: fitness_user
+    ipAllowList: []
