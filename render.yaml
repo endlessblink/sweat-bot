@@ -15,7 +15,7 @@ services:
         value: sweatbot
       - key: DOPPLER_CONFIG
         value: prd
-      - key: DOPPLER_TOKEN
+      - key: DOPPLER_SERVICE_TOKEN
         sync: false  # You'll set this in Render dashboard
       - key: NODE_ENV
         value: production
